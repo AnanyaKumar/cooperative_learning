@@ -2,7 +2,7 @@
 
 Authors: Ananya Kumar, Chris Ying, Dominick Direnzo, Edgar Chen
 
-![coop car game](https://raw.githubusercontent.com/AnanyaKumar/cooperative_learning/blob/master/proposal/coop_game.png)
+![coop car game](https://github.com/AnanyaKumar/cooperative_learning/blob/master/proposal/coop_game.png)
 
 In this project, we investigate cooperative play. Multiple cars, with the same policy, are trying to cooperate to drive to reach the finish line, while avoiding obstacles. For more details, see our proposal.
 
