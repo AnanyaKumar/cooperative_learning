@@ -4,42 +4,9 @@
 from gym import Env, spaces
 from gym.envs.registration import register
 import numpy as np
-
-class Car:
-    def __init__(self, pos_x, pos_y):
-        self.start_x = float(pos_x)
-        self.start_y = float(pos_y)
-        self.reset()
-        
-    def reset(self):
-        self.pos_x = self.start_x
-        self.pos_y = self.start_y
-        self.vel_x = 0.0
-        self.vel_y = 0.0
-        self.is_alive = True
-
-    def die(self):
-        assert self.is_alive
-        self.is_alive = False
-        self.pos_x = self.start_x -np.random.randint(10**2, 10**3)
-        self.pos_y = self.start_y -np.random.randint(10**2, 10**3)
-        self.vel_x = 0.0
-        self.vel_y = 0.0
-
-    def move(self, acc_x, acc_y, time):
-        assert self.is_alive
-        self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
-        self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
-        self.vel_x = self.vel_x + acc_x * time
-        self.vel_y = self.vel_y + acc_y * time
-
-    def type(self):
-        return "Car"
-
-
-def l2_distance(x_1, y_1, x_2, y_2):
-    return np.sqrt((x_1 - x_2) ** 2 + (y_1 - y_2) ** 2)
-
+from gym.envs.classic_control import rendering
+from car import Car
+import geometry_utils
 
 class CoopEnv(Env):
     """Implement the cooperative game environment described in our proposal.
@@ -47,7 +14,7 @@ class CoopEnv(Env):
 
     metadata = {'render.modes': ['human']}
 
-    def _setup_simple_lane(self, car_radius=1, y_gap=0.5, num_cars_y=1, road_length=100):
+    def _setup_simple_lane(self, car_radius=1, y_gap=0.5, num_cars_y=1, road_length=10):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
         # y-coordinate of the bottom lane
         self._bottom_lane = 0
@@ -55,18 +22,20 @@ class CoopEnv(Env):
         self._top_lane = 2 * num_cars_y * car_radius + (num_cars_y + 1) * y_gap
         # List of cars
         self._car_radius = car_radius
-        cars_x = [(i+1) * y_gap + (2 * i + 1) * car_radius for i in range(num_cars_y)]
-        self._cars = [Car(x, 0.0) for x in cars_x]
+        cars_y = [(i+1) * y_gap + (2 * i + 1) * car_radius for i in range(num_cars_y)]
+        self._cars = [Car(0.0, y) for y in cars_y]
+        self._road_length = road_length
 
     def __init__(self, num_cars_y):
         self._setup_simple_lane(num_cars_y=num_cars_y)
         self._max_accel = 1
-        self._max_steps = 100
+        self._max_steps = 1000
         self._time_delta = 0.05
         # Actions are the acceleration in the x direction and y direction for each car.
         self.action_space = spaces.Tuple((
             spaces.Box(low=-self._max_accel, high=self._max_accel, shape=(num_cars_y,)), # x acceleration
             spaces.Box(low=-self._max_accel, high=self._max_accel, shape=(num_cars_y,)))) # y acceleration
+        self.viewer = None
         self._reset()
 
     def _reset(self):
@@ -80,7 +49,6 @@ class CoopEnv(Env):
         """
         # The first dimension is the car.
         assert self.action_space.contains(actions)
-        print actions
 
         # Move cars.
         for i in range(len(self._cars)):
@@ -96,17 +64,19 @@ class CoopEnv(Env):
             # Check if car i collided with any car.
             collided = False
             for j in range(len(self._cars)):
-                if i == j or not(self._cars[j].is_alive):
+                if i <= j or not(self._cars[j].is_alive):
                     continue
-                if l2_distance(self._cars[i], self._cars[j]) < 2 * self._car_radius:
+                if geometry_utils.l2_distance(self._cars[i], self._cars[j]) < 2 * self._car_radius:
                     collided = True
                     self._cars[j].die()
-            # Kill the car if it collided with another car.
-            if collided:
+            # Kill the car if it collided with another car or if it's outside lane boundary.
+            if (collided or
+                self._cars[i].pos_y < self._bottom_lane + self._car_radius or
+                self._cars[i].pos_y > self._top_lane - self._car_radius):
                 self._cars[i].die()
 
         # Get rewards
-        new_reward = sum([c.pos_x - c.start_x for c in self._cars])
+        new_reward = sum([c.get_reward() for c in self._cars])
         step_reward = new_reward - self._reward
         self._reward = new_reward
 
@@ -127,7 +97,33 @@ class CoopEnv(Env):
 
 
     def _render(self, mode='human', close=False):
-        pass
+        # TODO: un-hardcode this. We want to make sure the cars look roughly circular, and the things that matter
+        # fit on screen.
+        screen_width = 1200
+        screen_height = 400
+        shift_y = 0.5
+        shift_x = 1
+        scale_y = float(screen_height) / float(self._top_lane - self._bottom_lane + 2 * shift_y)
+        scale_x = float(screen_width) / float(self._road_length + 2 * shift_x)
+
+        if self.viewer is None:
+            self.viewer = rendering.Viewer(screen_width, screen_height)
+
+        # Draw the car
+        for c in self._cars:
+            circle = geometry_utils.make_circle(c.pos_x, c.pos_y, self._car_radius)
+            circle = geometry_utils.shift_then_scale_points(circle, shift_x, shift_y, scale_x, scale_y)
+            self.viewer.add_onetime(rendering.PolyLine(circle, True))
+
+        # Draw the lanes
+        bottom_lane = [(-shift_x, self._bottom_lane), (self._road_length + shift_x, self._bottom_lane)]
+        bottom_lane = geometry_utils.shift_then_scale_points(bottom_lane, shift_x, shift_y, scale_x, scale_y)
+        self.viewer.add_onetime(rendering.PolyLine(bottom_lane, True))
+        top_lane = [(-shift_x, self._top_lane), (self._road_length + shift_x, self._top_lane)]
+        top_lane = geometry_utils.shift_then_scale_points(top_lane, shift_x, shift_y, scale_x, scale_y)
+        self.viewer.add_onetime(rendering.PolyLine(top_lane, True))
+
+        self.viewer.render()
 
     def _seed(self, seed=None):
         """Set the random seed.
@@ -139,26 +135,6 @@ class CoopEnv(Env):
         """
         np.random.seed(seed)
 
-    def query_model(self, state, action):
-        """Return the possible transition outcomes for a state-action pair.
-
-        This should be in the same format at the provided environments
-        in section 2.
-
-        Parameters
-        ----------
-        state
-          State used in query. Should be in the same format at
-          the states returned by reset and step.
-        action: int
-          The action used in query.
-
-        Returns
-        -------
-        [(prob, nextstate, reward, is_terminal), ...]
-          List of possible outcomes
-        """
-        pass
 
 register(
     id='coop-v0',
