@@ -1,0 +1,13 @@
+https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-1.0.1-py2-none-any.whl
+attrs
+gym[atari]
+h5py
+keras
+matplotlib
+numpy
+pillow
+protobuf>=3.0
+pydot-ng
+scipy
+semver
+
