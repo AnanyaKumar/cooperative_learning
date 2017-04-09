@@ -36,8 +36,6 @@ def run_random_policy(env):
         if is_terminal:
             break
 
-        time.sleep(0.1)
-
     return total_reward, num_steps
 
 

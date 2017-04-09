@@ -9,32 +9,35 @@ from car import Car
 import geometry_utils
 
 class CoopEnv(Env):
-    """Implement the cooperative game environment described in our proposal.
-    """
+    """Implement the cooperative game environment described in our proposal."""
 
     metadata = {'render.modes': ['human']}
 
-    def _setup_simple_lane(self, car_radius=1, y_gap=0.5, num_cars_y=1, road_length=10):
+    def _setup_simple_lane(self, car_radius=1, y_gap=0.5, num_cars_y=1, road_length=100):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
-        # y-coordinate of the bottom lane
+        # TODO: add randomly generated obstacle(s) that don't intersect and are within the lane.
+        # TODO: make a more complex environment, where we have a bunch of rows of cars.
+        # y-coordinate of the bottom lane.
         self._bottom_lane = 0
-        # y-coordinate of the top lane
+        # y-coordinate of the top lane.
         self._top_lane = 2 * num_cars_y * car_radius + (num_cars_y + 1) * y_gap
-        # List of cars
+        # List of cars.
         self._car_radius = car_radius
         cars_y = [(i+1) * y_gap + (2 * i + 1) * car_radius for i in range(num_cars_y)]
         self._cars = [Car(0.0, y) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, num_cars_y):
+    def __init__(self, num_cars_y=1, max_accel=1, max_velocity=10, max_steps=1000, time_delta=0.05):
+        # TODO: add support for max velocity, and make sure cars don't go above this.
         self._setup_simple_lane(num_cars_y=num_cars_y)
-        self._max_accel = 1
-        self._max_steps = 1000
-        self._time_delta = 0.05
+        self._max_accel = max_accel
+        self._max_steps = max_steps
+        self._time_delta = time_delta
         # Actions are the acceleration in the x direction and y direction for each car.
         self.action_space = spaces.Tuple((
             spaces.Box(low=-self._max_accel, high=self._max_accel, shape=(num_cars_y,)), # x acceleration
             spaces.Box(low=-self._max_accel, high=self._max_accel, shape=(num_cars_y,)))) # y acceleration
+        # TODO: add observation space (do we really need this though?)
         self.viewer = None
         self._reset()
 
@@ -44,19 +47,13 @@ class CoopEnv(Env):
         self._num_steps = 0
         self._reward = 0.0
 
-    def _step(self, actions):
-        """Execute the specified list of actions.
-        """
-        # The first dimension is the car.
-        assert self.action_space.contains(actions)
-
-        # Move cars.
-        for i in range(len(self._cars)):
-            # Only consider alive cars.
-            if self._cars[i].is_alive:
-                self._cars[i].move(actions[0][i], actions[1][i], self._time_delta)
-
-        # Check collisions.
+    def _kill_collided_cars(self):
+        """Check collisions between cars and cars and obstacles, kill cars that collide with anything"""
+        # TODO: Improve collision computation strategy if needed. Right now we just check if the cars
+        # collide at the end of each time step, which is OK if the cars don't move too fast and our
+        # time steps are small, so it's fine for a first pass. In reality, we can actually compute
+        # collisions by solving a cubic equation (numpy probably does it pretty fast). Or there
+        # are plenty of approximation schemes that run fast and are better.
         for i in range(len(self._cars)):
             # Skip dead cars.
             if not(self._cars[i].is_alive):
@@ -66,7 +63,9 @@ class CoopEnv(Env):
             for j in range(len(self._cars)):
                 if i <= j or not(self._cars[j].is_alive):
                     continue
-                if geometry_utils.l2_distance(self._cars[i], self._cars[j]) < 2 * self._car_radius:
+                if (geometry_utils.l2_distance(self._cars[i].pos_x, self._cars[i].pos_y, 
+                    self._cars[j].pos_x, self._cars[j].pos_y) 
+                    < 2 * self._car_radius):
                     collided = True
                     self._cars[j].die()
             # Kill the car if it collided with another car or if it's outside lane boundary.
@@ -75,15 +74,33 @@ class CoopEnv(Env):
                 self._cars[i].pos_y > self._top_lane - self._car_radius):
                 self._cars[i].die()
 
-        # Get rewards
-        new_reward = sum([c.get_reward() for c in self._cars])
+    def _get_total_reward(self):
+        """Get the total reward (from the start of the episode)"""
+        return sum([c.get_reward() for c in self._cars])
+
+    def _step(self, actions):
+        """Execute the specified list of actions.
+        """
+        assert self.action_space.contains(actions)
+
+        # Move cars.
+        for i in range(len(self._cars)):
+            # Only consider alive cars.
+            if self._cars[i].is_alive:
+                self._cars[i].move(actions[0][i], actions[1][i], self._time_delta)
+
+        # Check collisions.
+        self._kill_collided_cars()
+
+        # Compute rewards.
+        new_reward = self._get_total_reward()
         step_reward = new_reward - self._reward
         self._reward = new_reward
 
         # Update number of steps.
         self._num_steps += 1
 
-        # Check if we are in terminal state.
+        # Check if we are in a terminal state.
         is_terminal = False
         if self._num_steps >= self._max_steps:
             is_terminal = True
@@ -97,14 +114,17 @@ class CoopEnv(Env):
 
 
     def _render(self, mode='human', close=False):
-        # TODO: un-hardcode this. We want to make sure the cars look roughly circular, and the things that matter
-        # fit on screen.
         screen_width = 1200
         screen_height = 400
+        # Shift the coordinates so that we can see above the top lane, below the bottom lane,
+        # left of the start position of the cars.
         shift_y = 0.5
-        shift_x = 1
+        shift_x = 2
+        # The scaling is defined in terms of the height, apply the same scaling so that the
+        # rendering doesn't look weird.
+        # TODO: make sure we can see all obstacles (and maybe all cars).
         scale_y = float(screen_height) / float(self._top_lane - self._bottom_lane + 2 * shift_y)
-        scale_x = float(screen_width) / float(self._road_length + 2 * shift_x)
+        scale_x = scale_y
 
         if self.viewer is None:
             self.viewer = rendering.Viewer(screen_width, screen_height)
@@ -139,4 +159,4 @@ class CoopEnv(Env):
 register(
     id='coop-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 1})
+    kwargs={'num_cars_y': 6})
