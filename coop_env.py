@@ -6,6 +6,7 @@ from gym.envs.registration import register
 import numpy as np
 from gym.envs.classic_control import rendering
 from car import Car
+from obstacle import Obstacle
 import geometry_utils
 
 class CoopEnv(Env):
@@ -24,11 +25,12 @@ class CoopEnv(Env):
         # List of cars.
         self._car_radius = car_radius
         cars_y = [(i+1) * y_gap + (2 * i + 1) * car_radius for i in range(num_cars_y)]
-        self._cars = [Car(0.0, y) for y in cars_y]
+        self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, num_cars_y=1, max_accel=1, max_velocity=10, max_steps=1000, time_delta=0.05):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=1000, time_delta=0.05):
         # TODO: add support for max velocity, and make sure cars don't go above this.
+        self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
         self._max_accel = max_accel
         self._max_steps = max_steps
@@ -54,25 +56,30 @@ class CoopEnv(Env):
         # time steps are small, so it's fine for a first pass. In reality, we can actually compute
         # collisions by solving a cubic equation (numpy probably does it pretty fast). Or there
         # are plenty of approximation schemes that run fast and are better.
+
+        # list of cars to kill at the end of the loop
+        kill_list = []
         for i in range(len(self._cars)):
-            # Skip dead cars.
             if not(self._cars[i].is_alive):
                 continue
-            # Check if car i collided with any car.
             collided = False
-            for j in range(len(self._cars)):
-                if i <= j or not(self._cars[j].is_alive):
-                    continue
-                if (geometry_utils.l2_distance(self._cars[i].pos_x, self._cars[i].pos_y, 
-                    self._cars[j].pos_x, self._cars[j].pos_y) 
-                    < 2 * self._car_radius):
+            # Check if car i collided with an obstacle
+            for obs in self._obstacles:
+                if self._cars[i].check_collision(obs):
                     collided = True
-                    self._cars[j].die()
+            # Check if car i collided with any car.
+            for j in range(len(self._cars)):
+                if i == j or not(self._cars[j].is_alive):
+                    continue
+                if self._cars[i].check_collision(self._cars[j]):
+                    collided = True
             # Kill the car if it collided with another car or if it's outside lane boundary.
             if (collided or
                 self._cars[i].pos_y < self._bottom_lane + self._car_radius or
                 self._cars[i].pos_y > self._top_lane - self._car_radius):
-                self._cars[i].die()
+                kill_list.append(self._cars[i])
+        for car in kill_list:
+            car.die()
 
     def _get_total_reward(self):
         """Get the total reward (from the start of the episode)"""
@@ -129,6 +136,12 @@ class CoopEnv(Env):
         if self.viewer is None:
             self.viewer = rendering.Viewer(screen_width, screen_height)
 
+        # Draw the obstacles:
+        for obs in self._obstacles:
+            circle = geometry_utils.make_circle(obs.pos_x, obs.pos_y, obs.radius)
+            circle = geometry_utils.shift_then_scale_points(circle, shift_x, shift_y, scale_x, scale_y)
+            self.viewer.add_onetime(rendering.FilledPolygon(circle))
+
         # Draw the car
         for c in self._cars:
             circle = geometry_utils.make_circle(c.pos_x, c.pos_y, self._car_radius)
@@ -159,4 +172,4 @@ class CoopEnv(Env):
 register(
     id='coop-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 6})
+    kwargs={'num_cars_y': 6, 'obstacles': [Obstacle(20, 3, 3), Obstacle (3, 10, 2)]})
