@@ -2,6 +2,7 @@
 """Define the Car class."""
 
 import numpy as np
+import geometry_utils as geom
 
 class Car:
     def __init__(self, pos_x, pos_y, radius):
@@ -49,6 +50,9 @@ class Car:
             # with another car or hitting a road boundary kills the car and prevents it from
             # making future progress.
             return self.max_x - self.start_x - 100
+
+    def check_collision(self, obj):
+        return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y) <= self.radius + obj.radius
 
     def type(self):
         """Get type of object, for error checking and validation"""

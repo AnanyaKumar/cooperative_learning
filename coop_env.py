@@ -56,33 +56,30 @@ class CoopEnv(Env):
         # time steps are small, so it's fine for a first pass. In reality, we can actually compute
         # collisions by solving a cubic equation (numpy probably does it pretty fast). Or there
         # are plenty of approximation schemes that run fast and are better.
+
+        # list of cars to kill at the end of the loop
+        kill_list = []
         for i in range(len(self._cars)):
-            # Skip dead cars.
             if not(self._cars[i].is_alive):
                 continue
             collided = False
             # Check if car i collided with an obstacle
-            car = self._cars[i]
             for obs in self._obstacles:
-                if not car.is_alive:
-                    continue
-                if obs.check_collision(car):
+                if self._cars[i].check_collision(obs):
                     collided = True
             # Check if car i collided with any car.
-
             for j in range(len(self._cars)):
-                if i <= j or not(self._cars[j].is_alive):
+                if i == j or not(self._cars[j].is_alive):
                     continue
-                if (geometry_utils.l2_distance(self._cars[i].pos_x, self._cars[i].pos_y, 
-                    self._cars[j].pos_x, self._cars[j].pos_y) 
-                    < 2 * self._car_radius):
+                if self._cars[i].check_collision(self._cars[j]):
                     collided = True
-                    self._cars[j].die()
             # Kill the car if it collided with another car or if it's outside lane boundary.
             if (collided or
                 self._cars[i].pos_y < self._bottom_lane + self._car_radius or
                 self._cars[i].pos_y > self._top_lane - self._car_radius):
-                self._cars[i].die()
+                kill_list.append(self._cars[i])
+        for car in kill_list:
+            car.die()
 
     def _get_total_reward(self):
         """Get the total reward (from the start of the episode)"""
