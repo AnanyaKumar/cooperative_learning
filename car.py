@@ -4,9 +4,10 @@
 import numpy as np
 
 class Car:
-    def __init__(self, pos_x, pos_y):
+    def __init__(self, pos_x, pos_y, radius):
         self.start_x = float(pos_x) # Starting x co-ordinate.
         self.start_y = float(pos_y) # Starting y co-ordinate.
+        self.radius = radius
         self.reset()
         
     def reset(self):
