@@ -24,6 +24,9 @@ class LinearModel:
     ## Public methods
 
     def predict(self, state):
+        """
+        state: B x I
+        """
         output = self.sess.run(self.out, feed_dict={self.input_state: state})
         return output
 
@@ -54,10 +57,17 @@ class LinearModel:
         return loss
 
     def save_model(self, path):
+        """
+        Usage:
+            model.save_model('saved_models/my_model.ckpt')
+        """
         save_path = self.saver.save(self.sess, path)
         print('Model saved to "%s"' % os.path.abspath(save_path))
 
     def restore_model(self, path):
+        """
+        For some reason, Tensorflow ONLY supports absolute paths when using Saver.
+        """
         if not os.path.isabs(path):
             print('Provided checkpoint path "%s" is not absolute, model not restored.' % path)
             sys.exit()
@@ -77,7 +87,7 @@ class LinearModel:
 
         # output (fc without relu)
         out_weight = tf.Variable(tf.truncated_normal([64, self.output_size]), name='out_weight')
-        self.out_bias = tf.Variable(tf.constant(0.1, shape=[self.output_size]), name='out_bias')
+        out_bias = tf.Variable(tf.constant(0.1, shape=[self.output_size]), name='out_bias')
         self.out = tf.matmul(self.fc2, out_weight)
         self.out = tf.nn.bias_add(self.out, self.out_bias)
         tf.summary.histogram('output_values', self.out)

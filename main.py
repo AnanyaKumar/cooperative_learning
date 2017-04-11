@@ -2,8 +2,8 @@ from coop_env import CoopEnv
 import gym
 import time
 import interface
-from keras.layers import Dense, Activation
-from keras.models import Sequential
+
+from linear_model import LinearModel
 
 
 def run_random_policy(env):
@@ -79,15 +79,7 @@ def run_nn_policy(env, model):
 
 
 def create_model(k):
-    model = Sequential()
-    model.add(Dense(units=512, input_dim = k * 4))
-    model.add(Activation('relu'))
-    model.add(Dense(units=512))
-    model.add(Activation('relu'))
-    model.add(Dense(units=4))
-    model.compile(optimizer='rmsprop',
-        loss='mse')
-    return model
+    model = LinearModel(4 * k + 4, 2)
 
 def main():
     env = gym.make('coop-v0')
