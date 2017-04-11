@@ -48,6 +48,7 @@ class CoopEnv(Env):
             c.reset()
         self._num_steps = 0
         self._reward = 0.0
+        return list(self._cars)
 
     def _kill_collided_cars(self):
         """Check collisions between cars and cars and obstacles, kill cars that collide with anything"""
@@ -88,7 +89,7 @@ class CoopEnv(Env):
     def _step(self, actions):
         """Execute the specified list of actions.
         """
-        assert self.action_space.contains(actions)
+        # assert self.action_space.contains(actions)
 
         # Move cars.
         for i in range(len(self._cars)):
