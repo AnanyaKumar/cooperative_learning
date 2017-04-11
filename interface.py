@@ -11,6 +11,7 @@ def build_nn_input(car_list, k):
 		sorted_car_list = [x[1] for x in sorted_car_list[1:k+1]]
 		param_list = [(car.pos_x - this_car.pos_x, car.pos_y - this_car.pos_y,
 			car.vel_x - this_car.vel_x, car.vel_y - this_car.vel_y) for car in sorted_car_list]
+		param_list.append((this_car.pos_x, this_car.pos_y, this_car.vel_x, this_car.vel_y))
 		nn_input.append(np.array(param_list).flatten())
 	return np.array(nn_input)
 

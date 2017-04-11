@@ -80,7 +80,7 @@ def run_nn_policy(env, model):
 
 def create_model(k):
     model = Sequential()
-    model.add(Dense(units=512, input_dim = k * 4))
+    model.add(Dense(units=512, input_dim = k * 4 + 4))
     model.add(Activation('relu'))
     model.add(Dense(units=512))
     model.add(Activation('relu'))
