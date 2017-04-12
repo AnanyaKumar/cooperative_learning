@@ -80,6 +80,7 @@ def run_nn_policy(env, model):
 
 def create_model(k):
     model = LinearModel(4 * k + 4, 2)
+    return model
 
 def main():
     env = gym.make('coop-v0')

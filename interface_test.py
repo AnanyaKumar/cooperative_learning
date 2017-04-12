@@ -12,7 +12,7 @@ class TestInterface(unittest.TestCase):
         car3 = Car(99.0, 99.0, 0.1)
         car2.move(2.0, 2.0, 1.0)
         inarr = interface.build_nn_input([car, car2, car3], 1)
-        self.assertEqual(inarr.shape, (3, 4))
+        self.assertEqual(inarr.shape, (3, 8))
         self.assertEqual(inarr[0][0], 3.0)
         self.assertEqual(inarr[0][1], 4.0)
         self.assertEqual(inarr[0][2], 2.0)
