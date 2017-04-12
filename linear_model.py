@@ -47,7 +47,7 @@ class LinearModel:
 
         # TODO: for actor-critic, pred should be predicted from a separate critic network instead
 
-        target = (action - pred) * reward / (2.0 * var)
+        target = pred - (action - pred) * reward / (2.0 * var)
         _, loss, summary = self.sess.run([self.train_op, self.loss, self.summary],
                 feed_dict={self.input_state: state, self.target: target})
 
