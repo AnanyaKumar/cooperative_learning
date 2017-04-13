@@ -65,7 +65,7 @@ class Car:
             # even without subtracting the cars should learn to make progress because colliding
             # with another car or hitting a road boundary kills the car and prevents it from
             # making future progress.
-            return self.max_x - self.start_x - 1.0
+            return self.max_x - self.start_x
 
     def dist(self, obj):
         return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y)

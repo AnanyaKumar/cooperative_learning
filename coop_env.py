@@ -91,7 +91,7 @@ class CoopEnv(Env):
         """Execute the specified list of actions.
             action: numpy.array, shape=[num_cars, 2]
         """
-        # assert self.action_space.contains(actions)
+        assert self.action_space.contains(actions)
 
         # Clip acceleration
         accel = np.clip(actions, a_min=-self._max_accel, a_max=self._max_accel)
@@ -174,8 +174,11 @@ class CoopEnv(Env):
         """
         np.random.seed(seed)
 
+    def get_max_accel(self):
+        return self._max_accel
+
 
 register(
     id='coop-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 6, 'obstacles': []})
+    kwargs={'num_cars_y': 1, 'obstacles': []})
