@@ -3,6 +3,7 @@ import os
 import sys
 
 import tensorflow as tf
+from tensorflow.contrib.layers import xavier_initializer
 
 class LinearModel:
 
@@ -30,29 +31,14 @@ class LinearModel:
         output = self.sess.run(self.out, feed_dict={self.input_state: state})
         return output
 
-    def train_reinforce(self, state, pred, action, var, reward):
+    def train(self, state, target):
         """
-        B = batch size
-        I = input size
-        A = action dimension
-
-        state: B x I    input state being trained
-        pred: B x A     output from model.predict(state)
-        action: B x A   sampled action using mean from pred
-        var: B x A      variance used for sampling action (MUST BE POSTIIVE)
-        reward: B x 1   reward from environment for the performed action
-
-        inputs expected to be numpy arrays
+        state: B x I
+        target: B x A
         """
-
-        # TODO: for actor-critic, pred should be predicted from a separate critic network instead
-
-        target = (action - pred) * reward / (2.0 * var) + pred
         _, loss, summary = self.sess.run([self.train_op, self.loss, self.summary],
                 feed_dict={self.input_state: state, self.target: target})
-
         self.summary_writer.add_summary(summary, self.iter_number)
-        self.iter_number += 1
 
         return loss
 
@@ -86,8 +72,7 @@ class LinearModel:
         self.fc2 = self._fc_layer(self.fc1, 64, 'fc2')
 
         # output (fc without relu)
-        out_weight = tf.Variable(tf.truncated_normal([64, self.output_size]), name='out_weight')
-        out_bias = tf.Variable(tf.constant(0.1, shape=[self.output_size]), name='out_bias')
+        out_weight, out_bias = self._get_fc_weights(64, self.output_size, 'out')
         self.out = tf.matmul(self.fc2, out_weight)
         self.out = tf.nn.bias_add(self.out, out_bias)
         tf.summary.histogram('output_values', self.out)
@@ -104,8 +89,7 @@ class LinearModel:
     def _fc_layer(self, input_node, output_size, name):
         input_shape = input_node.get_shape().as_list()  # [None, input_size]
 
-        fc_weight = tf.Variable(tf.truncated_normal([input_shape[1], output_size]), name=name+'_weight')
-        fc_bias = tf.Variable(tf.constant(0.1, shape=[output_size]), name=name+'_bias')
+        fc_weight, fc_bias = self._get_fc_weights(input_shape[1], output_size, name)
 
         fc = tf.matmul(input_node, fc_weight)
         fc = tf.nn.bias_add(fc, fc_bias)
@@ -116,3 +100,12 @@ class LinearModel:
         tf.summary.histogram(name+'_activations', fc)
 
         return fc
+
+    def _get_fc_weights(self, input_size, output_size, name):
+        fc_weight = tf.get_variable(
+                name=name+'_weight',
+                shape=[input_size, output_size],
+                initializer=xavier_initializer())
+        fc_bias = tf.Variable(tf.constant(0.0, shape=[output_size]), name=name+'_bias')
+
+        return fc_weight, fc_bias
