@@ -4,6 +4,7 @@ import time
 import interface
 from keras.layers import Dense, Activation
 from keras.models import Sequential
+import numpy as np
 
 
 def run_random_policy(env):
@@ -42,7 +43,7 @@ def run_random_policy(env):
 
     return total_reward, num_steps
 
-def run_nn_policy(env, model, stddev=1.0):
+def run_nn_policy(env, model, k, stddev=1.0):
     """Run a random policy for the given environment.
 
     Logs the total reward and the number of steps until the terminal
@@ -52,6 +53,8 @@ def run_nn_policy(env, model, stddev=1.0):
     ----------
     env: gym.envs.Environment
       Instance of an OpenAI gym.
+    model: NN model
+    k: number of neighboring cars we use as NN input
 
     Returns
     -------
@@ -67,9 +70,9 @@ def run_nn_policy(env, model, stddev=1.0):
     total_reward = 0
     num_steps = 0
     while True:
-        state_rep = interface.build_nn_input(old_state, 2)
+        state_rep = interface.build_nn_input(old_state, k)
         pred = model.predict_on_batch(state_rep)
-        action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
+        action = interface.build_nn_output(pred, env.get_max_accel(), std_x=stddev, std_y=stddev)
         new_state, reward, is_terminal, debug_info = env.step(action)
         episode.append((state_rep, pred, action, reward))
         env.render()
@@ -86,16 +89,20 @@ def reinforce(env, model, episode, total_reward, stddev=1.0):
     gt = total_reward
     var = stddev ** 2
     for state_rep, pred, action, reward in episode:
-        action_t = action.transpose()
+        action_t = np.array(action).transpose()
         target = (action_t - pred)/var * gt + pred
         model.train_on_batch(state_rep, target)
         gt -= reward
     
 def create_model(k):
     model = Sequential()
-    model.add(Dense(units=512, input_dim = k * 4 + 4))
+    model.add(Dense(units=56, input_dim = k * 4 + 4))
     model.add(Activation('relu'))
-    model.add(Dense(units=512))
+    model.add(Dense(units=56))
+    model.add(Activation('relu'))
+    model.add(Dense(units=56))
+    model.add(Activation('relu'))
+    model.add(Dense(units=56))
     model.add(Activation('relu'))
     model.add(Dense(units=2))
     model.compile(optimizer='rmsprop',
@@ -104,11 +111,16 @@ def create_model(k):
 
 def main():
     env = gym.make('coop-v0')
-    model = create_model(2)
-    stddev = 1.0
+    k = 0
+    model = create_model(k)
+    stddev = 100.0
+    stddev_delta = 0.1
+    stddev_min = 1.0
     while (1):
-        total_reward, num_steps, episode = run_nn_policy(env, model, stddev)
+        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
         reinforce(env, model, episode, total_reward, stddev)
+        if stddev > stddev_min:
+            stddev -= stddev_delta
         print total_reward, num_steps
     print('Agent received total reward of: %f' % total_reward)
     print('Agent took %d steps' % num_steps)
