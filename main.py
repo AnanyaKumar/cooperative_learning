@@ -43,7 +43,7 @@ def run_random_policy(env):
 
     return total_reward, num_steps
 
-def run_nn_policy(env, model, stddev=1.0):
+def run_nn_policy(env, model, k, stddev=1.0):
     """Run a random policy for the given environment.
 
     Logs the total reward and the number of steps until the terminal
@@ -53,6 +53,8 @@ def run_nn_policy(env, model, stddev=1.0):
     ----------
     env: gym.envs.Environment
       Instance of an OpenAI gym.
+    model: NN model
+    k: number of neighboring cars we use as NN input
 
     Returns
     -------
@@ -68,7 +70,7 @@ def run_nn_policy(env, model, stddev=1.0):
     total_reward = 0
     num_steps = 0
     while True:
-        state_rep = interface.build_nn_input(old_state, 2)
+        state_rep = interface.build_nn_input(old_state, k)
         pred = model.predict_on_batch(state_rep)
         action = interface.build_nn_output(pred, env.get_max_accel(), std_x=stddev, std_y=stddev)
         new_state, reward, is_terminal, debug_info = env.step(action)
@@ -109,12 +111,13 @@ def create_model(k):
 
 def main():
     env = gym.make('coop-v0')
-    model = create_model(2)
+    k = 0
+    model = create_model(k)
     stddev = 100.0
     stddev_delta = 0.1
     stddev_min = 1.0
     while (1):
-        total_reward, num_steps, episode = run_nn_policy(env, model, stddev)
+        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
         reinforce(env, model, episode, total_reward, stddev)
         if stddev > stddev_min:
             stddev -= stddev_delta
