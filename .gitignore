@@ -1,7 +1,10 @@
+*.swp
 bin/*
 *.pyc
 .Python
 include/*
 lib/*
 pip-selfcheck.json
+saved_models/*
+logs/*
 
