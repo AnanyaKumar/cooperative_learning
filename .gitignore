@@ -4,4 +4,6 @@ bin/*
 include/*
 lib/*
 pip-selfcheck.json
-
+saved_models/*
+logs/*
+*.swp
