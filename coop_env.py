@@ -89,7 +89,7 @@ class CoopEnv(Env):
     def _step(self, actions):
         """Execute the specified list of actions.
         """
-        # assert self.action_space.contains(actions)
+        assert self.action_space.contains(actions)
 
         # Move cars.
         for i in range(len(self._cars)):
@@ -169,8 +169,11 @@ class CoopEnv(Env):
         """
         np.random.seed(seed)
 
+    def get_max_accel(self):
+        return self._max_accel
+
 
 register(
     id='coop-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 6, 'obstacles': []})
+    kwargs={'num_cars_y': 1, 'obstacles': []})
