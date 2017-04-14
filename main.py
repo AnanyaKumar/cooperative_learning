@@ -2,8 +2,8 @@ from coop_env import CoopEnv
 import gym
 import time
 import interface
-from keras.layers import Dense, Activation
-from keras.models import Sequential
+
+from linear_model import LinearModel
 
 
 def run_random_policy(env):
@@ -90,16 +90,9 @@ def reinforce(env, model, episode, total_reward, stddev=1.0):
         target = (action_t - pred)/var * gt + pred
         model.train_on_batch(state_rep, target)
         gt -= reward
-    
+
 def create_model(k):
-    model = Sequential()
-    model.add(Dense(units=512, input_dim = k * 4 + 4))
-    model.add(Activation('relu'))
-    model.add(Dense(units=512))
-    model.add(Activation('relu'))
-    model.add(Dense(units=2))
-    model.compile(optimizer='rmsprop',
-        loss='mse')
+    model = LinearModel(k * 4 + 4, 2)
     return model
 
 def main():
