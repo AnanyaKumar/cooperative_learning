@@ -15,6 +15,6 @@ def build_nn_input(car_list, k):
 		nn_input.append(np.array(param_list).flatten())
 	return np.array(nn_input)
 
-def build_nn_output(normal_list):
-	return np.array(([np.random.normal(mean_x, abs(std_x)) for (mean_x, std_x, mean_y, std_y) in normal_list],
-		[np.random.normal(mean_y, abs(std_y)) for (mean_x, std_x, mean_y, std_y) in normal_list]))
+def build_nn_output(normal_list, std_x=1, std_y=1):
+	return np.array(([np.random.normal(mean_x, abs(std_x)) for (mean_x, _) in normal_list],
+		[np.random.normal(mean_y, abs(std_y)) for (_, mean_y) in normal_list]))
