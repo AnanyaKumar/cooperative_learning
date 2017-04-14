@@ -34,10 +34,10 @@ class Car:
     def move(self, acc_x, acc_y, time):
         """Move the car for specified time with specified acceleration vector."""
         assert self.is_alive
-        self.vel_x = acc_x
-        self.vel_y = acc_y
-        self.pos_x = self.pos_x + self.vel_x * time
-        # self.pos_y = self.pos_y + self.vel_y * time
+        self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
+        self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
+        self.vel_x = self.vel_x + acc_x * time
+        self.vel_y = self.vel_y + acc_y * time
         
         self.max_x = max(self.pos_x, self.max_x)
 
@@ -50,7 +50,7 @@ class Car:
             # even without subtracting the cars should learn to make progress because colliding
             # with another car or hitting a road boundary kills the car and prevents it from
             # making future progress.
-            return self.max_x - self.start_x
+            return self.max_x - self.start_x - 3.0
 
     def dist(self, obj):
         return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y)

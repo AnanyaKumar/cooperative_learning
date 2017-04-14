@@ -114,7 +114,7 @@ def main():
     model = create_model(k)
     stddev = 10.0
     stddev_delta = 0.01
-    stddev_min = 0.1
+    stddev_min = 0.2
     for i in range(2000):
         total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
         reinforce(env, model, episode, total_reward, stddev)
