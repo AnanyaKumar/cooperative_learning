@@ -34,10 +34,11 @@ class Car:
     def move(self, acc_x, acc_y, time):
         """Move the car for specified time with specified acceleration vector."""
         assert self.is_alive
-        self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
-        self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
-        self.vel_x = self.vel_x + acc_x * time
-        self.vel_y = self.vel_y + acc_y * time
+        self.vel_x = acc_x
+        self.vel_y = acc_y
+        self.pos_x = self.pos_x + self.vel_x * time
+        # self.pos_y = self.pos_y + self.vel_y * time
+        
         self.max_x = max(self.pos_x, self.max_x)
 
     def get_reward(self):

@@ -56,6 +56,6 @@ def build_nn_output(normal_list, max_accel, std_x=1, std_y=1):
 	assert(len(normal_list[0]) == 2)
 	controls_x = [bound(-max_accel, max_accel, np.random.normal(mean_x, abs(std_x))) 
 		for (mean_x, _) in normal_list]
-	controls_y = [bound(-max_accel, max_accel, np.random.normal(mean_y, abs(std_y)))
+	controls_y = [0
 		for (_, mean_y) in normal_list]
 	return (np.array(controls_x), np.array(controls_y))

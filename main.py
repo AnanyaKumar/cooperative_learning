@@ -90,21 +90,19 @@ def reinforce(env, model, episode, total_reward, stddev=1.0):
     var = stddev ** 2
     for state_rep, pred, action, reward in episode:
         action_t = np.array(action).transpose()
-        target = (action_t - pred)/var * gt + pred
+        target = (action_t - pred)/var * gt + pred # Setting target = np.array([[1.0, 0]]) works
         model.train_on_batch(state_rep, target)
         gt -= reward
     
 def create_model(k):
     model = Sequential()
-    model.add(Dense(units=56, input_dim = k * 4 + 4))
-    model.add(Activation('relu'))
-    model.add(Dense(units=56))
-    model.add(Activation('relu'))
-    model.add(Dense(units=56))
-    model.add(Activation('relu'))
-    model.add(Dense(units=56))
-    model.add(Activation('relu'))
-    model.add(Dense(units=2))
+    model.add(Dense(units=2, input_dim = k * 4 + 4, kernel_initializer='zeros',
+        bias_initializer='zeros'))
+    # model.add(Activation('relu'))
+    # model.add(Dense(units=4, kernel_initializer='zeros',
+    #     bias_initializer='zeros'))
+    # model.add(Activation('relu'))
+    # model.add(Dense(units=2))
     model.compile(optimizer='rmsprop',
         loss='mse')
     return model
@@ -113,9 +111,9 @@ def main():
     env = gym.make('coop-v0')
     k = 0
     model = create_model(k)
-    stddev = 100.0
+    stddev = 10.0
     stddev_delta = 0.1
-    stddev_min = 1.0
+    stddev_min = 0.1
     while (1):
         total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
         reinforce(env, model, episode, total_reward, stddev)
