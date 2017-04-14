@@ -24,6 +24,12 @@ class LinearModel:
 
     ## Public methods
 
+    def predict_on_batch(self, state):
+        return self.predict(state)
+
+    def train_on_batch(self, state, target):
+        return self.train(state, target)
+
     def predict(self, state):
         """
         state: B x I
@@ -39,6 +45,7 @@ class LinearModel:
         _, loss, summary = self.sess.run([self.train_op, self.loss, self.summary],
                 feed_dict={self.input_state: state, self.target: target})
         self.summary_writer.add_summary(summary, self.iter_number)
+        self.iter_number += 1
 
         return loss
 
