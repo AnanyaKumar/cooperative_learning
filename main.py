@@ -72,8 +72,9 @@ def run_nn_policy(env, model, k, stddev=1.0):
     while True:
         state_rep = interface.build_nn_input(old_state, k)
         pred = model.predict_on_batch(state_rep)
-        action = interface.build_nn_output(pred, env.get_max_accel(), std_x=stddev, std_y=stddev)
-        new_state, reward, is_terminal, debug_info = env.step(action)
+        action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
+        clipped_action = interface.clip_output(action, env.get_max_accel())
+        new_state, reward, is_terminal, debug_info = env.step(clipped_action)
         episode.append((state_rep, pred, action, reward))
         env.render()
         old_state = new_state
@@ -112,9 +113,9 @@ def main():
     k = 0
     model = create_model(k)
     stddev = 10.0
-    stddev_delta = 0.1
+    stddev_delta = 0.01
     stddev_min = 0.1
-    while (1):
+    for i in range(2000):
         total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
         reinforce(env, model, episode, total_reward, stddev)
         if stddev > stddev_min:

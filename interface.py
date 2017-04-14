@@ -30,15 +30,11 @@ def build_nn_input(car_list, k):
 		nn_input.append(np.array(param_list).flatten())
 	return np.array(nn_input)
 
-def bound(min_val, max_val, val):
-	"""Bounds a value to be between the range [min_val, max_val]"""
-	if val < min_val:
-		return min_val
-	elif val > max_val:
-		return max_val
-	return val
+def clip_output(controls, max_accel):
+	controls_x, controls_y = controls
+	return (np.clip(controls_x, -max_accel, max_accel), np.clip(controls_y, -max_accel, max_accel))
 
-def build_nn_output(normal_list, max_accel, std_x=1, std_y=1):
+def build_nn_output(normal_list, std_x=1, std_y=1):
 	"""Returns controls corresponding to neural net output means (using normal distribution).
 
 	Args:
@@ -54,8 +50,6 @@ def build_nn_output(normal_list, max_accel, std_x=1, std_y=1):
 	assert(type(normal_list) == np.ndarray)
 	assert(type(normal_list[0]) == np.ndarray)
 	assert(len(normal_list[0]) == 2)
-	controls_x = [bound(-max_accel, max_accel, np.random.normal(mean_x, abs(std_x))) 
-		for (mean_x, _) in normal_list]
-	controls_y = [0
-		for (_, mean_y) in normal_list]
+	controls_x = [np.random.normal(mean_x, abs(std_x)) for (mean_x, _) in normal_list]
+	controls_y = [0 for (_, mean_y) in normal_list]
 	return (np.array(controls_x), np.array(controls_y))
