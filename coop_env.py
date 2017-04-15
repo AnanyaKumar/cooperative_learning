@@ -28,11 +28,12 @@ class CoopEnv(Env):
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=1000, time_delta=0.05):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=5, max_steps=500, time_delta=0.05):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
         self._max_accel = max_accel
+        self._max_velocity = max_velocity
         self._max_steps = max_steps
         self._time_delta = time_delta
         # Actions are the acceleration in the x direction and y direction for each car.
@@ -88,14 +89,18 @@ class CoopEnv(Env):
 
     def _step(self, actions):
         """Execute the specified list of actions.
+            action: numpy.array, shape=[num_cars, 2]
         """
         # assert self.action_space.contains(actions)
+
+        # Clip acceleration
+        accel = np.clip(actions, a_min=-self._max_accel, a_max=self._max_accel)
 
         # Move cars.
         for i in range(len(self._cars)):
             # Only consider alive cars.
             if self._cars[i].is_alive:
-                self._cars[i].move(actions[0][i], actions[1][i], self._time_delta)
+                self._cars[i].move(accel[0][i], accel[1][i], self._time_delta, self._max_velocity)
 
         # Check collisions.
         self._kill_collided_cars()
