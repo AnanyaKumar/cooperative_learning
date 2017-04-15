@@ -14,7 +14,7 @@ class CoopEnv(Env):
 
     metadata = {'render.modes': ['human']}
 
-    def _setup_simple_lane(self, car_radius=1, y_gap=0.5, num_cars_y=1, road_length=100):
+    def _setup_simple_lane(self, car_radius=1, y_gap=1.5, num_cars_y=1, road_length=100):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
         # TODO: add randomly generated obstacle(s) that don't intersect and are within the lane.
         # TODO: make a more complex environment, where we have a bunch of rows of cars.
@@ -28,7 +28,7 @@ class CoopEnv(Env):
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=1000, time_delta=0.05):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=10, time_delta=1):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
@@ -79,6 +79,10 @@ class CoopEnv(Env):
                 self._cars[i].pos_y < self._bottom_lane + self._car_radius or
                 self._cars[i].pos_y > self._top_lane - self._car_radius):
                 kill_list.append(self._cars[i])
+
+        # It is important that we first decide what cars to kill, and then kill them. This
+        # is because collisions are not transitive. E.g. suppose A collides with B, B collides
+        # with C. If we kill B, then A and C aren't colliding. But we want to kill all of them.
         for car in kill_list:
             car.die()
 

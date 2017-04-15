@@ -43,7 +43,7 @@ def run_random_policy(env):
 
     return total_reward, num_steps
 
-def run_nn_policy(env, model, k, stddev=1.0):
+def run_nn_policy(env, model, k, stddev=1.0, render=True):
     """Run a random policy for the given environment.
 
     Logs the total reward and the number of steps until the terminal
@@ -64,7 +64,8 @@ def run_nn_policy(env, model, k, stddev=1.0):
       episode finished.
     """
     old_state = env.reset()
-    env.render()
+    if render:
+        env.render()
 
     episode = []
     total_reward = 0
@@ -72,10 +73,15 @@ def run_nn_policy(env, model, k, stddev=1.0):
     while True:
         state_rep = interface.build_nn_input(old_state, k)
         pred = model.predict_on_batch(state_rep)
-        action = interface.build_nn_output(pred, env.get_max_accel(), std_x=stddev, std_y=stddev)
-        new_state, reward, is_terminal, debug_info = env.step(action)
+        action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
+        clipped_action = interface.clip_output(action, env.get_max_accel())
+        # It's important that we send the clipped action to the environment, but
+        # use the unclipped action for reinforce. Otherwise reinforce won't
+        # get the correct updates.
+        new_state, reward, is_terminal, debug_info = env.step(clipped_action)
         episode.append((state_rep, pred, action, reward))
-        env.render()
+        if render:
+            env.render()
         old_state = new_state
 
         total_reward += reward
@@ -96,27 +102,29 @@ def reinforce(env, model, episode, total_reward, stddev=1.0):
     
 def create_model(k):
     model = Sequential()
-    model.add(Dense(units=56, input_dim = k * 4 + 4))
-    model.add(Activation('relu'))
-    model.add(Dense(units=56))
-    model.add(Activation('relu'))
-    model.add(Dense(units=56))
-    model.add(Activation('relu'))
-    model.add(Dense(units=56))
-    model.add(Activation('relu'))
-    model.add(Dense(units=2))
+    model.add(Dense(units=2, input_dim = k * 4 + 4, kernel_initializer='zeros',
+        bias_initializer='zeros'))
+    # model.add(Activation('relu'))
+    # model.add(Dense(units=56))
+    # model.add(Activation('relu'))
+    # model.add(Dense(units=56))
+    # model.add(Activation('relu'))
+    # model.add(Dense(units=56))
+    # model.add(Activation('relu'))
+    # model.add(Dense(units=2))
     model.compile(optimizer='rmsprop',
         loss='mse')
     return model
 
 def main():
     env = gym.make('coop-v0')
+    num_iterations = 2000
     k = 0
     model = create_model(k)
-    stddev = 100.0
-    stddev_delta = 0.1
-    stddev_min = 1.0
-    while (1):
+    stddev = 10.0
+    stddev_delta = 0.01
+    stddev_min = 0.2
+    for i in range(num_iterations):
         total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
         reinforce(env, model, episode, total_reward, stddev)
         if stddev > stddev_min:
