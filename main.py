@@ -5,7 +5,7 @@ import interface
 from keras.layers import Dense, Activation
 from keras.models import Sequential
 import numpy as np
-
+from rolling_stats import RollingStats
 
 def run_random_policy(env):
     """Run a random policy for the given environment.
@@ -118,20 +118,34 @@ def create_model(k):
 
 def main():
     env = gym.make('coop-v0')
-    num_iterations = 2000
+    smooth_average_reward = RollingStats(30)
+    num_training_iterations = 2000
+    num_testing_iterations = 50
     k = 0
     model = create_model(k)
+    # Anneal the standard deviation down.
+    test_std_dev = 0.01
     stddev = 10.0
     stddev_delta = 0.01
     stddev_min = 0.2
-    for i in range(num_iterations):
-        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev)
+    for i in range(num_training_iterations):
+        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev, False)
         reinforce(env, model, episode, total_reward, stddev)
         if stddev > stddev_min:
             stddev -= stddev_delta
-        print total_reward, num_steps
-    print('Agent received total reward of: %f' % total_reward)
-    print('Agent took %d steps' % num_steps)
+        smooth_average_reward.add_num(total_reward)
+        print smooth_average_reward.get_average(), total_reward, num_steps
+
+    ave_reward = 0.0
+    ave_steps = 0.0
+    for i in range(num_testing_iterations):
+        total_reward, num_steps, _ = run_nn_policy(env, model, k, test_std_dev, False)
+        ave_reward += total_reward
+        ave_steps += num_steps
+    ave_reward /= num_testing_iterations
+    ave_steps /= num_testing_iterations
+    print('Agent received total reward of: %f' % ave_reward)
+    print('Agent took %d steps' % ave_steps)
 
 
 if __name__ == '__main__':
