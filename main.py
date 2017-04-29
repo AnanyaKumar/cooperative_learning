@@ -4,6 +4,7 @@ import time
 
 from keras.layers import Dense, Activation
 from keras.models import Sequential
+from keras import optimizers
 import numpy as np
 from rolling_stats import RollingStats
 
@@ -94,48 +95,36 @@ def run_nn_policy(env, model, k, stddev=1.0, render=True):
 def reinforce(env, model, episode, total_reward, stddev=1.0):
     gt = total_reward
     var = stddev ** 2
+    state_batch = []
+    target_batch = []
     for state_rep, pred, action, reward in episode:
         action_t = np.array(action).transpose()
         target = (action_t - pred)/var * gt + pred
-        model.train_on_batch(state_rep, target)
+        state_batch.append(state_rep)
+        target_batch.append(target)
         gt -= reward
+    model.train_on_batch(np.concatenate(state_batch), np.concatenate(target_batch))
 
 def create_model(k):
     model = Sequential()
     model.add(Dense(units=2, input_dim = k * 4 + 4, kernel_initializer='zeros',
         bias_initializer='zeros'))
     # model.add(Activation('relu'))
-    # model.add(Dense(units=56))
+    # model.add(Dense(units=8, kernel_initializer='zeros',
+    #     bias_initializer='zeros'))
     # model.add(Activation('relu'))
-    # model.add(Dense(units=56))
+    # model.add(Dense(units=2, kernel_initializer='zeros',
+    #     bias_initializer='zeros'))
     # model.add(Activation('relu'))
     # model.add(Dense(units=56))
     # model.add(Activation('relu'))
     # model.add(Dense(units=2))
+    rmsprop = optimizers.RMSprop(lr=0.0001, clipnorm=1.)
     model.compile(optimizer='rmsprop',
         loss='mse')
     return model
 
-def main():
-    env = gym.make('coop-v0')
-    smooth_average_reward = RollingStats(30)
-    num_training_iterations = 2000
-    num_testing_iterations = 50
-    k = 0
-    model = create_model(k)
-    # Anneal the standard deviation down.
-    test_std_dev = 0.01
-    stddev = 10.0
-    stddev_delta = 0.01
-    stddev_min = 0.2
-    for i in range(num_training_iterations):
-        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev, False)
-        reinforce(env, model, episode, total_reward, stddev)
-        if stddev > stddev_min:
-            stddev -= stddev_delta
-        smooth_average_reward.add_num(total_reward)
-        print smooth_average_reward.get_average(), total_reward, num_steps
-
+def get_test_reward(env, model, k, test_std_dev, num_testing_iterations=50):
     ave_reward = 0.0
     ave_steps = 0.0
     for i in range(num_testing_iterations):
@@ -144,9 +133,33 @@ def main():
         ave_steps += num_steps
     ave_reward /= num_testing_iterations
     ave_steps /= num_testing_iterations
-    print('Agent received total reward of: %f' % ave_reward)
-    print('Agent took %d steps' % ave_steps)
+    return ave_reward, ave_steps
 
+def main():
+    env = gym.make('coop-v0')
+    smooth_average_reward = RollingStats(30)
+    num_training_iterations = 10000
+    num_testing_iterations = 50
+    k = 0
+    model = create_model(k)
+    # Anneal the standard deviation down.
+    test_std_dev = 0.001
+    stddev = 1.0
+    stddev_delta = 0.0002
+    stddev_min = 0.001
+    for i in range(num_training_iterations):
+        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev, False)
+        reinforce(env, model, episode, total_reward, stddev)
+        if stddev > stddev_min:
+            stddev -= stddev_delta
+        smooth_average_reward.add_num(total_reward)
+        # print smooth_average_reward.get_average(), total_reward, num_steps
+        if i % 100 == 0:
+            ave_reward, ave_steps = get_test_reward(env, model, k, test_std_dev, 50)
+            print ave_reward, ave_steps
+            print model.get_weights()
+    ave_reward, ave_steps = get_test_reward(env, model, k, test_std_dev, 50)
+    print ave_reward, ave_steps
 
 if __name__ == '__main__':
     main()

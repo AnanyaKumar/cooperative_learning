@@ -28,7 +28,7 @@ class CoopEnv(Env):
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=10, time_delta=1):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=10, time_delta=1.0):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
