@@ -94,9 +94,10 @@ def run_nn_policy(env, actor, critic, k, stddev=1.0, render=True):
         # print num_steps, critic.predict_on_batch(old_state_rep)[0][0]
 
         # Train actor
-        # action_t = np.array(action).transpose()
-        # target = (action_t - pred)/(stddev ** 2) * (reward + next_reward) + pred
-        # actor.train_on_batch(old_state_rep, target)
+        cur_reward = critic.predict_on_batch(old_state_rep)
+        action_t = np.array(action).transpose()
+        target = (action_t - pred) / (stddev ** 2) * (next_reward - cur_reward) + pred
+        actor.train_on_batch(old_state_rep, target)
 
         # Render if requested.
         if render:
@@ -188,11 +189,11 @@ def main():
     # Anneal the standard deviation down.
     test_std_dev = 0.00001
     stddev = 0.1
-    stddev_delta = 0.000002
+    stddev_delta = 0.00002
     stddev_min = 0.0001
     for i in range(num_training_iterations):
         total_reward, num_steps, episode = run_nn_policy(env, actor, critic, k, stddev, False)
-        reinforce(env, actor, critic, episode, total_reward, stddev)
+        # reinforce(env, actor, critic, episode, total_reward, stddev)
         if stddev > stddev_min:
             stddev -= stddev_delta
         smooth_average_reward.add_num(total_reward)
