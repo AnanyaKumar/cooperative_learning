@@ -185,4 +185,4 @@ class CoopEnv(Env):
 register(
     id='coop-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 1, 'obstacles': []})
+    kwargs={'num_cars_y': 2, 'obstacles': []})
