@@ -34,6 +34,7 @@ class Car:
     def move(self, acc_x, acc_y, time):
         """Move the car for specified time with specified acceleration vector."""
         assert self.is_alive
+        # print "acceleration", acc_y
         self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
         self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
         self.vel_x = self.vel_x + acc_x * time
@@ -46,7 +47,7 @@ class Car:
             return self.max_x - self.start_x
         else:
             # TODO: Code seems to be very brittle on the penalty of dying.
-            return self.max_x - self.start_x - 5.0
+            return self.max_x - self.start_x - 0.05
 
     def dist(self, obj):
         return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y)

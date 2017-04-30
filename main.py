@@ -44,7 +44,7 @@ def run_random_policy(env):
 
     return total_reward, num_steps
 
-def run_nn_policy(env, model, k, stddev=1.0, render=True):
+def run_nn_policy(env, actor, critic, k, stddev=1.0, render=True):
     """Run a random policy for the given environment.
 
     Logs the total reward and the number of steps until the terminal
@@ -72,19 +72,37 @@ def run_nn_policy(env, model, k, stddev=1.0, render=True):
     total_reward = 0
     num_steps = 0
     while True:
-        state_rep = interface.build_nn_input(old_state, k)
-        pred = model.predict_on_batch(state_rep)
+        old_state_rep = interface.build_nn_input(old_state, k)
+        pred = actor.predict_on_batch(old_state_rep)
         action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
         clipped_action = interface.clip_output(action, env.get_max_accel())
         # It's important that we send the clipped action to the environment, but
         # use the unclipped action for reinforce. Otherwise reinforce won't
         # get the correct updates.
         new_state, reward, is_terminal, debug_info = env.step(clipped_action)
-        episode.append((state_rep, pred, action, reward))
+        episode.append((old_state_rep, pred, action, reward))
+
+        # Train critic
+        if is_terminal:
+            next_reward = 0.0
+        else:
+            new_state_rep = interface.build_nn_input(new_state, k)
+            next_reward = critic.predict_on_batch(new_state_rep)[0][0]
+        train_reward = np.array([reward + next_reward])
+        critic.train_on_batch(old_state_rep, train_reward)
+        # print num_steps, critic.predict_on_batch(old_state_rep)[0][0]
+
+        # Train actor
+        # action_t = np.array(action).transpose()
+        # target = (action_t - pred)/(stddev ** 2) * (reward + next_reward) + pred
+        # actor.train_on_batch(old_state_rep, target)
+
+        # Render if requested.
         if render:
             env.render()
-        old_state = new_state
 
+        # Bookkeeping.
+        old_state = new_state
         total_reward += reward
         num_steps += 1
 
@@ -92,26 +110,26 @@ def run_nn_policy(env, model, k, stddev=1.0, render=True):
             break
     return total_reward, num_steps, episode
 
-def reinforce(env, model, episode, total_reward, stddev=1.0):
+def reinforce(env, actor, critic, episode, total_reward, stddev=1.0):
     gt = total_reward
     var = stddev ** 2
     state_batch = []
     target_batch = []
     for state_rep, pred, action, reward in episode:
         action_t = np.array(action).transpose()
-        target = (action_t - pred)/var * gt + pred
+        critic_reward = critic.predict_on_batch(state_rep)[0][0]
+        target = (action_t - pred)/var * (gt - critic_reward) + pred
         state_batch.append(state_rep)
         target_batch.append(target)
         gt -= reward
-    model.train_on_batch(np.concatenate(state_batch), np.concatenate(target_batch))
+    actor.train_on_batch(np.concatenate(state_batch), np.concatenate(target_batch))
     
-def create_model(k):
+def create_policy_model(k):
     model = Sequential()
-    model.add(Dense(units=2, input_dim = k * 4 + 4, kernel_initializer='zeros',
-        bias_initializer='zeros'))
+    model.add(Dense(units=2, input_dim = k * 4 + 4))
+    model.add(Activation('tanh'))
     # model.add(Activation('relu'))
-    # model.add(Dense(units=8, kernel_initializer='zeros',
-    #     bias_initializer='zeros'))
+    # model.add(Dense(units=12))
     # model.add(Activation('relu'))
     # model.add(Dense(units=2, kernel_initializer='zeros',
     #     bias_initializer='zeros'))
@@ -119,16 +137,39 @@ def create_model(k):
     # model.add(Dense(units=56))
     # model.add(Activation('relu'))
     # model.add(Dense(units=2))
-    rmsprop = optimizers.RMSprop(lr=0.0001, clipnorm=1.)
+    layer = Dense(2, trainable=False)
+    model.add(layer)
+    l = layer.get_weights()
+    print l
+    l[0][0] = np.array([0.0, 0.01])
+    l[0][1] = np.array([0.01, 0.0])
+    layer.set_weights(l)
+    print layer.get_weights()
+    rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
     model.compile(optimizer='rmsprop',
         loss='mse')
     return model
 
-def get_test_reward(env, model, k, test_std_dev, num_testing_iterations=50):
+def create_critic_model(k):
+    model = Sequential()
+    model.add(Dense(units=12, input_dim = k * 4 + 4))
+    model.add(Activation('relu'))
+    model.add(Dense(units=12))
+    model.add(Activation('relu'))
+    model.add(Dense(units=12))
+    model.add(Activation('relu'))
+    model.add(Dense(units=1))
+    rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
+    model.compile(optimizer='rmsprop',
+        loss='mse')
+    return model
+
+def get_test_reward(env, actor, critic, k, test_std_dev, num_testing_iterations=50):
     ave_reward = 0.0
     ave_steps = 0.0
     for i in range(num_testing_iterations):
-        total_reward, num_steps, _ = run_nn_policy(env, model, k, test_std_dev, False)
+        total_reward, num_steps, _ = run_nn_policy(env, actor, critic, k, test_std_dev, False)
+        # print total_reward
         ave_reward += total_reward
         ave_steps += num_steps
     ave_reward /= num_testing_iterations
@@ -138,28 +179,29 @@ def get_test_reward(env, model, k, test_std_dev, num_testing_iterations=50):
 def main():
     env = gym.make('coop-v0')
     smooth_average_reward = RollingStats(30)
-    num_training_iterations = 10000
+    num_training_iterations = 100000
     num_testing_iterations = 50
     k = 0
-    model = create_model(k)
+    actor = create_policy_model(k)
+    critic = create_critic_model(k)
     # Anneal the standard deviation down.
-    test_std_dev = 0.001
-    stddev = 1.0
-    stddev_delta = 0.0002
-    stddev_min = 0.001
+    test_std_dev = 0.00001
+    stddev = 0.1
+    stddev_delta = 0.000002
+    stddev_min = 0.0001
     for i in range(num_training_iterations):
-        total_reward, num_steps, episode = run_nn_policy(env, model, k, stddev, False)
-        reinforce(env, model, episode, total_reward, stddev)
+        total_reward, num_steps, episode = run_nn_policy(env, actor, critic, k, stddev, False)
+        reinforce(env, actor, critic, episode, total_reward, stddev)
         if stddev > stddev_min:
             stddev -= stddev_delta
         smooth_average_reward.add_num(total_reward)
         # print smooth_average_reward.get_average(), total_reward, num_steps
         if i % 100 == 0:
-            ave_reward, ave_steps = get_test_reward(env, model, k, test_std_dev, 50)
-            print ave_reward, ave_steps
-            print model.get_weights()
-    ave_reward, ave_steps = get_test_reward(env, model, k, test_std_dev, 50)
-    print ave_reward, ave_steps
+            ave_reward, ave_steps = get_test_reward(env, actor, critic, k, test_std_dev, 50)
+            print ave_reward, ave_steps, stddev
+            # print model.get_weights()
+    ave_reward, ave_steps = get_test_reward(env, actor, critic, k, test_std_dev, 50)
+    print ave_reward, ave_steps, stddev
 
 if __name__ == '__main__':
     main()
