@@ -84,12 +84,13 @@ def run_nn_policy(env, actor, critic, k, stddev=1.0, render=True):
 
         # Train critic
         if is_terminal:
-            next_reward = 0.0
+            next_reward = np.array([[0.0]] * len(new_state))
         else:
             new_state_rep = interface.build_nn_input(new_state, k)
-            next_reward = critic.predict_on_batch(new_state_rep)[0][0]
-        train_reward = np.array([reward + next_reward])
-        critic.train_on_batch(old_state_rep, train_reward)
+            next_reward = critic.predict_on_batch(new_state_rep)
+        for i in range(len(new_state)):
+            next_reward[i][0] += reward
+        critic.train_on_batch(old_state_rep, next_reward)
         # print num_steps, critic.predict_on_batch(old_state_rep)[0][0]
 
         # Train actor
