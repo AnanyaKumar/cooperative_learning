@@ -14,7 +14,7 @@ class CoopEnv(Env):
 
     metadata = {'render.modes': ['human']}
 
-    def _setup_simple_lane(self, car_radius=1, y_gap=1.5, num_cars_y=1, road_length=100):
+    def _setup_simple_lane(self, car_radius=0.01, y_gap=0.015, num_cars_y=1, road_length=1):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
         # TODO: add randomly generated obstacle(s) that don't intersect and are within the lane.
         # TODO: make a more complex environment, where we have a bunch of rows of cars.
@@ -28,7 +28,7 @@ class CoopEnv(Env):
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=10, max_steps=10, time_delta=1.0):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.01, max_velocity=0.1, max_steps=10, time_delta=1.0):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
@@ -135,8 +135,8 @@ class CoopEnv(Env):
         screen_height = 400
         # Shift the coordinates so that we can see above the top lane, below the bottom lane,
         # left of the start position of the cars.
-        shift_y = 0.5
-        shift_x = 2
+        shift_y = 0.005
+        shift_x = 0.02
         # The scaling is defined in terms of the height, apply the same scaling so that the
         # rendering doesn't look weird.
         # TODO: make sure we can see all obstacles (and maybe all cars).
