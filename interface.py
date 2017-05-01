@@ -3,32 +3,45 @@
 
 import numpy as np
 
-def build_nn_input(car_list, k):
+def build_nn_input(state, k, l):
 	"""Takes a list of car objects and returns neural net state information for each car.
 
-	Args:
-		car_list: list of at least k+1 car objects.
-		k: Each car decides what action to take based on its information and the information of
-			the closest k cars.
+	Args: state: State from the environment. Consists of a list of
+	        cars and obstacles.  k: Each car decides what action
+	        to take based on its information and the information
+	        of the closest k cars, and the closest l obstacles.
 
-	Returns:
-		A numpy array states, where states[i] is the state for the ith car. len(states) is the
-			number of cars. states[i] is an array of size 4*k+4. The last 4 floats are the ith
-			car's x position, y position, x velocity, y velocity. The first 4k floats are 4 floats
-			for each neighboring car. We keep the relative position and velocity for each of the k
-			nearest cars.
-	"""
+	Returns: A numpy array states, where states[i] is the state
+		for the ith car. len(states) is the number of
+		cars. states[i] is an array of size 4*k + 2*l +4. The
+		last 4 floats are the ith car's x position, y
+		position, x velocity, y velocity. The first 4k floats
+		are 4 floats for each neighboring car. We keep the
+		relative position and velocity for each of the k
+		nearest cars. We keep the relative position of the
+		obstacles.
+
+        """
+        car_list, obstacle_list = state
 	assert k < len(car_list)
+        assert l <= len(obstacle_list)
 	nn_input = []
 	for this_car in car_list:
 		sorted_car_list = sorted([(this_car.dist(car), car) for car in car_list], key=(lambda x:x[0]))
+                sorted_obstacle_list = sorted([(this_car.dist(obs), obs) for obs in obstacle_list], key=(lambda x:x[0]))
 		# Remove the first car, as it should be itself
 		sorted_car_list = [x[1] for x in sorted_car_list[1:k+1]]
-		param_list = [(car.pos_x - this_car.pos_x, car.pos_y - this_car.pos_y,
-			car.vel_x - this_car.vel_x, car.vel_y - this_car.vel_y) for car in sorted_car_list]
-		param_list.append((this_car.pos_x, this_car.pos_y, this_car.vel_x, this_car.vel_y))
-		nn_input.append(np.array(param_list).flatten())
+                sorted_obstacle_list = [x[1] for x in sorted_obstacle_list[0:l]]
+		param_list = [[car.pos_x - this_car.pos_x, car.pos_y - this_car.pos_y,
+			car.vel_x - this_car.vel_x, car.vel_y - this_car.vel_y] for car in sorted_car_list]
+                param_list += [[obs.pos_x - this_car.pos_x, obs.pos_y - this_car.pos_y, obs.radius] for obs in sorted_obstacle_list]
+                param_list.append([this_car.pos_x, this_car.pos_y, this_car.vel_x, this_car.vel_y])
+		nn_input.append(np.array(sum(param_list, [])))
+
 	return np.array(nn_input)
+
+def get_nn_input_dim(k, l):
+        return 4 * k + 3 * l + 4
 
 def clip_output(controls, max_accel):
 	controls_x, controls_y = controls
