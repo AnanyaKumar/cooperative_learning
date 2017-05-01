@@ -13,13 +13,12 @@ def build_nn_input(state, k, l):
 
 	Returns: A numpy array states, where states[i] is the state
 		for the ith car. len(states) is the number of
-		cars. states[i] is an array of size 4*k + 2*l +4. The
+		cars. states[i] is an array of size 4*k + 3*l +4. The
 		last 4 floats are the ith car's x position, y
 		position, x velocity, y velocity. The first 4k floats
-		are 4 floats for each neighboring car. We keep the
-		relative position and velocity for each of the k
-		nearest cars. We keep the relative position of the
-		obstacles.
+		are 4 floats for each neighboring car. The next 3l
+		floats are the relative (x,y) position and radius of
+		the l closest obstacles.
 
         """
         car_list, obstacle_list = state

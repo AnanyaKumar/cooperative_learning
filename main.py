@@ -199,8 +199,8 @@ def create_policy_model(k, l):
     l[0][1] = np.array([0.01, 0.0])
     layer.set_weights(l)
     print layer.get_weights()
-    rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
-    model.compile(optimizer=rmsprop, loss='mse')
+    #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
+    model.compile(optimizer='rmsprop', loss='mse')
     return model
 
 def create_critic_model(k,l):
@@ -212,8 +212,8 @@ def create_critic_model(k,l):
     model.add(Dense(units=12))
     model.add(Activation('relu'))
     model.add(Dense(units=1))
-    rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
-    model.compile(optimizer=rmsprop, loss='mse')
+    #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
+    model.compile(optimizer='rmsprop', loss='mse')
     return model
 
 def get_test_reward(env, actor, critic, k, l, test_std_dev, num_testing_iterations=50):
@@ -238,9 +238,9 @@ def main():
     actor = create_policy_model(k, l)
     critic = create_critic_model(k, l)
     # Anneal the standard deviation down.
-    test_std_dev = 0.003
-    stddev = 0.003
-    stddev_delta = 0.00000
+    test_std_dev = 0.00001
+    stddev = 0.1
+    stddev_delta = 0.000002
     stddev_min = 0.0001
     for i in range(num_training_iterations):
         total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, k, l, stddev, False)

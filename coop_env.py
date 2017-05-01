@@ -14,7 +14,7 @@ class CoopEnv(Env):
 
     metadata = {'render.modes': ['human']}
 
-    def _setup_simple_lane(self, car_radius=0.05, max_speed=.1, num_cars_y=1, road_length=3):
+    def _setup_simple_lane(self, car_radius=0.1, num_cars_y=1, road_length=3):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
         # TODO: add randomly generated obstacle(s) that don't intersect and are within the lane.
         # TODO: make a more complex environment, where we have a bunch of rows of cars.
@@ -28,10 +28,10 @@ class CoopEnv(Env):
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.01, max_speed=0.03, max_steps=50, time_delta=1.0):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=1., max_steps=10, time_delta=1.0):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
-        self._setup_simple_lane(num_cars_y=num_cars_y, max_speed=max_speed)
+        self._setup_simple_lane(num_cars_y=num_cars_y)
         self._max_accel = max_accel
         self._max_velocity = max_velocity
         self._max_steps = max_steps
@@ -181,8 +181,9 @@ class CoopEnv(Env):
     def get_max_accel(self):
         return self._max_accel
 
+obstacle_list1 = [Obstacle(1.5,.5,0.2), Obstacle(2.0, .8, .1)]
 
 register(
     id='coop-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 2, 'obstacles': [Obstacle(1.5,.5,0.2), Obstacle(2.0, .8, .1)]})
+    kwargs={'num_cars_y': 2, 'obstacles': []})
