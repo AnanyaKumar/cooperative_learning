@@ -102,7 +102,7 @@ def main():
     while (1):
         total_reward, num_steps, episode = run_nn_policy(env, model, stddev)
         reinforce(env, model, episode, total_reward, stddev)
-        print total_reward, num_steps
+        print(total_reward, num_steps)
     print('Agent received total reward of: %f' % total_reward)
     print('Agent took %d steps' % num_steps)
 
