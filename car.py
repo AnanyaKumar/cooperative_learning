@@ -10,7 +10,7 @@ class Car:
         self.start_y = float(pos_y) # Starting y co-ordinate.
         self.radius = radius
         self.reset()
-        
+
     def reset(self):
         """Reset state of the car"""
         self.pos_x = self.start_x # Current x-coordinate.
@@ -31,13 +31,29 @@ class Car:
         self.vel_x = 0.0
         self.vel_y = 0.0
 
-    def move(self, acc_x, acc_y, time):
+    def move(self, acc_x, acc_y, time, max_vel):
         """Move the car for specified time with specified acceleration vector."""
         assert self.is_alive
-        self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
-        self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
-        self.vel_x = self.vel_x + acc_x * time
-        self.vel_y = self.vel_y + acc_y * time
+
+        new_vel_x = self.vel_x + acc_x * time
+        new_vel_y = self.vel_y + acc_y * time
+
+        if new_vel_x < max_vel:
+            self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
+            self.vel_x = new_vel_x
+        else:
+            dt = (max_vel - self.vel_x) / acc_x     # barring weird floating point issues, dt < time
+            self.pos_x = self.pos_x + self.vel_x * dt + 0.5 * acc_x * (dt ** 2) + max_vel * (time - dt)
+            self.vel_x = max_vel
+
+        if new_vel_y < max_vel:
+            self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
+            self.vel_y = new_vel_y
+        else:
+            dt = (max_vel - self.vel_y) / acc_y     # barring weird floating point issues, dt < time
+            self.pos_y = self.pos_y + self.vel_y * dt + 0.5 * acc_y * (dt ** 2) + max_vel * (time - dt)
+            self.vel_y = max_vel
+
         self.max_x = max(self.pos_x, self.max_x)
 
     def get_reward(self):
@@ -49,7 +65,7 @@ class Car:
             # even without subtracting the cars should learn to make progress because colliding
             # with another car or hitting a road boundary kills the car and prevents it from
             # making future progress.
-            return self.max_x - self.start_x - 100
+            return self.max_x - self.start_x - 1.0
 
     def dist(self, obj):
         return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y)
