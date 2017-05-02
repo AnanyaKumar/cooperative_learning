@@ -46,12 +46,12 @@ def run_random_policy(env):
 
     return total_reward, num_steps
 
-def run_nn_policy(env, nn, k, l, stddev=1.0, render=False):
+def run_nn_policy(env, nn, build_state_rep, stddev=1.0, render=False):
     total_reward = 0
     num_steps = 0
     state = env.reset()
     while True:
-        state_rep = interface.build_nn_input(state, k, l)
+        state_rep = build_state_rep(state)
         pred = nn.predict_on_batch(state_rep)
         action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
         clipped_action = interface.clip_output(action, env.get_max_accel())
@@ -67,7 +67,7 @@ def run_nn_policy(env, nn, k, l, stddev=1.0, render=False):
 
     return total_reward, num_steps
 
-def run_actor_critic_episode(env, actor, critic, k, l, stddev=1.0, render=True):
+def run_actor_critic_episode(env, actor, critic, build_state_rep, stddev=1.0, render=True):
     """Run one episode of actor-critic with baseline. See page 272 of
         Sutton and Barto for algorithm."""
     old_state = env.reset()
@@ -78,7 +78,7 @@ def run_actor_critic_episode(env, actor, critic, k, l, stddev=1.0, render=True):
     num_steps = 0
     num_cars = len(env._cars)
     while True:
-        old_state_rep = interface.build_nn_input(old_state, k, l)
+        old_state_rep = build_state_rep(old_state)
         pred = actor.predict_on_batch(old_state_rep)
         action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
 
@@ -92,7 +92,7 @@ def run_actor_critic_episode(env, actor, critic, k, l, stddev=1.0, render=True):
         if is_terminal:
             next_reward = np.array([[0.0]] * num_cars)
         else:
-            new_state_rep = interface.build_nn_input(new_state, k, l)
+            new_state_rep = build_state_rep(new_state)
             next_reward = critic.predict_on_batch(new_state_rep)
         for i in range(num_cars):
             next_reward[i][0] += reward
@@ -121,7 +121,7 @@ def run_actor_critic_episode(env, actor, critic, k, l, stddev=1.0, render=True):
     return total_reward, num_steps
 
 
-def run_monte_carlo_episode(env, actor, critic, k, l, stddev=1.0, render=True):
+def run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev=1.0, render=True):
     """Run one episode of monte carlo reinforce with baseline. See page 271 of
     Sutton and Barto for algorithm."""
     old_state = env.reset()
@@ -132,7 +132,7 @@ def run_monte_carlo_episode(env, actor, critic, k, l, stddev=1.0, render=True):
     total_reward = 0
     num_steps = 0
     while True:
-        old_state_rep = interface.build_nn_input(old_state, k, l)
+        old_state_rep = build_state_rep(old_state)
         pred = actor.predict_on_batch(old_state_rep)
         action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
         clipped_action = interface.clip_output(action, env.get_max_accel())
@@ -146,7 +146,7 @@ def run_monte_carlo_episode(env, actor, critic, k, l, stddev=1.0, render=True):
         if is_terminal:
             next_reward = np.array([[0.0]] * num_cars)
         else:
-            new_state_rep = interface.build_nn_input(new_state, k, l)
+            new_state_rep = build_state_rep(new_state)
             next_reward = critic.predict_on_batch(new_state_rep)
         for i in range(num_cars):
             next_reward[i][0] += reward
@@ -177,11 +177,12 @@ def run_monte_carlo_episode(env, actor, critic, k, l, stddev=1.0, render=True):
         Gt -= reward
     actor.train_on_batch(np.concatenate(state_batch), np.concatenate(target_batch))
     return total_reward, num_steps
+
     
 def create_policy_model(k, l):
     model = Sequential()
     model.add(Dense(units=2, input_dim = interface.get_nn_input_dim(k,l)))
-    model.add(Activation('tanh'))
+    #model.add(Activation('tanh'))
     # model.add(Activation('relu'))
     # model.add(Dense(units=12))
     # model.add(Activation('relu'))
@@ -216,11 +217,11 @@ def create_critic_model(k,l):
     model.compile(optimizer='rmsprop', loss='mse')
     return model
 
-def get_test_reward(env, actor, critic, k, l, test_std_dev, num_testing_iterations=50):
+def get_test_reward(env, actor, critic, build_state_rep, test_std_dev, num_testing_iterations=50):
     ave_reward = 0.0
     ave_steps = 0.0
     for i in range(num_testing_iterations):
-        total_reward, num_steps = run_nn_policy(env, actor, k, l, test_std_dev, True)
+        total_reward, num_steps = run_nn_policy(env, actor, build_state_rep, test_std_dev, True)
         # print total_reward
         ave_reward += total_reward
         ave_steps += num_steps
@@ -237,23 +238,24 @@ def main():
     l = 0
     actor = create_policy_model(k, l)
     critic = create_critic_model(k, l)
+    build_state_rep = lambda state: interface.build_nn_input(state, k, l)
     # Anneal the standard deviation down.
     test_std_dev = 0.00001
     stddev = 0.1
     stddev_delta = 0.000002
     stddev_min = 0.0001
     for i in range(num_training_iterations):
-        total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, k, l, stddev, False)
+        total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev, False)
         # reinforce(env, actor, critic, episode, total_reward, stddev)
         if stddev > stddev_min:
             stddev -= stddev_delta
         smooth_average_reward.add_num(total_reward)
         # print smooth_average_reward.get_average(), total_reward, num_steps
         if i % 100 == 0:
-            ave_reward, ave_steps = get_test_reward(env, actor, critic, k, l, test_std_dev, 5)
+            ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 1)
             print ave_reward, ave_steps, stddev
             # print model.get_weights()
-    ave_reward, ave_steps = get_test_reward(env, actor, critic, k, l, test_std_dev, 50)
+    ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 50)
     print ave_reward, ave_steps, stddev
 
 if __name__ == '__main__':
