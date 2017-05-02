@@ -270,12 +270,12 @@ def main():
     stddev_min = 0.0001
 
     for i in range(num_training_iterations):
-        total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, k, l, stddev, False)
+        total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev, False)
         if stddev > stddev_min:
             stddev -= stddev_delta
         # Get test error every so often
         if i % testing_frequency == 0:
-            ave_reward, ave_steps = get_test_reward(env, actor, critic, k, l, test_std_dev, 5)
+            ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 5)
             record_episode(env, recorder, actor, build_state_rep, test_std_dev)
             print ave_reward, ave_steps, stddev
             # print model.get_weights()
