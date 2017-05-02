@@ -12,7 +12,7 @@ import geometry_utils
 class CoopEnv(Env):
     """Implement the cooperative game environment described in our proposal."""
 
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'rgb_array']}
 
     def _setup_simple_lane(self, car_radius=0.05, num_cars_y=1, road_length=3):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
@@ -125,7 +125,7 @@ class CoopEnv(Env):
             is_terminal = True
 
         # No debug information right now.
-        debug_info = None
+        debug_info = {}
 
         return (list(self._cars), list(self._obstacles)), step_reward, is_terminal, debug_info
 
@@ -166,7 +166,8 @@ class CoopEnv(Env):
         top_lane = geometry_utils.shift_then_scale_points(top_lane, shift_x, shift_y, scale_x, scale_y)
         self.viewer.add_onetime(rendering.PolyLine(top_lane, True))
 
-        self.viewer.render()
+        return self.viewer.render(return_rgb_array=(mode == "rgb_array"))
+        
 
     def _seed(self, seed=None):
         """Set the random seed.

@@ -10,6 +10,9 @@ from keras import optimizers
 import numpy as np
 from rolling_stats import RollingStats
 
+# Enable flag to record videos.
+record_flag = 1
+
 def run_random_policy(env):
     """Run a random policy for the given environment.
 
@@ -46,18 +49,25 @@ def run_random_policy(env):
 
     return total_reward, num_steps
 
-def run_nn_policy(env, nn, build_state_rep, stddev=1.0, render=False):
+def run_nn_policy(env, nn, build_state_rep, stddev=1.0, render=False, recorder=None):
     total_reward = 0
     num_steps = 0
+    max_accel = env.get_max_accel()
+    if recorder:
+        env = recorder
+        record_flag = 1
+    
     state = env.reset()
     while True:
         state_rep = build_state_rep(state)
         pred = nn.predict_on_batch(state_rep)
         action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
-        clipped_action = interface.clip_output(action, env.get_max_accel())
+        clipped_action = interface.clip_output(action, max_accel)
         state, reward, is_terminal, debug_info = env.step(clipped_action)
-        if render:
-            env.render()
+        if render and recorder:
+            env.render(mode="rgb_array")
+        elif render:
+            env.render(mode="human")
 
         total_reward += reward
         num_steps += 1
@@ -65,6 +75,7 @@ def run_nn_policy(env, nn, build_state_rep, stddev=1.0, render=False):
         if is_terminal:
             break
 
+    record_flag = 0
     return total_reward, num_steps
 
 def run_actor_critic_episode(env, actor, critic, build_state_rep, stddev=1.0, render=True):
@@ -221,7 +232,7 @@ def get_test_reward(env, actor, critic, build_state_rep, test_std_dev, num_testi
     ave_reward = 0.0
     ave_steps = 0.0
     for i in range(num_testing_iterations):
-        total_reward, num_steps = run_nn_policy(env, actor, build_state_rep, test_std_dev, True)
+        total_reward, num_steps = run_nn_policy(env, actor, build_state_rep, test_std_dev, True, None)
         # print total_reward
         ave_reward += total_reward
         ave_steps += num_steps
@@ -229,8 +240,13 @@ def get_test_reward(env, actor, critic, build_state_rep, test_std_dev, num_testi
     ave_steps /= num_testing_iterations
     return ave_reward, ave_steps
 
+def record_episode(env, recorder, actor, build_state_rep, std_dev):
+    return run_nn_policy(env, actor, build_state_rep, std_dev, render=True, recorder=recorder)
+
+
 def main():
     env = gym.make('coop-v0')
+    recorder = gym.wrappers.Monitor(env, "videos", video_callable=lambda id: record_flag)
     smooth_average_reward = RollingStats(30)
     num_training_iterations = 100000
     num_testing_iterations = 50
@@ -253,6 +269,7 @@ def main():
         # print smooth_average_reward.get_average(), total_reward, num_steps
         if i % 100 == 0:
             ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 1)
+            record_episode(env, recorder, actor, build_state_rep, test_std_dev)
             print ave_reward, ave_steps, stddev
             # print model.get_weights()
     ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 50)
