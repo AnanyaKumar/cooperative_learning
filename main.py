@@ -178,25 +178,28 @@ def run_monte_carlo_episode(env, actor, critic, k, l, stddev=1.0, render=True):
     actor.train_on_batch(np.concatenate(state_batch), np.concatenate(target_batch))
     return total_reward, num_steps
     
-def create_policy_model(k, l):
+def create_policy_model(k, l, max_acc):
     model = Sequential()
-    model.add(Dense(units=2, input_dim = interface.get_nn_input_dim(k,l)))
-    model.add(Activation('tanh'))
-    # model.add(Activation('relu'))
-    # model.add(Dense(units=12))
-    # model.add(Activation('relu'))
+    model.add(Dense(units=8, input_dim = interface.get_nn_input_dim(k,l)))
+    model.add(Activation('relu'))
+    model.add(Dense(units=8))
+    model.add(Activation('relu'))
+    model.add(Dense(units=8))
+    model.add(Activation('relu'))
     # model.add(Dense(units=2, kernel_initializer='zeros',
     #     bias_initializer='zeros'))
     # model.add(Activation('relu'))
     # model.add(Dense(units=56))
     # model.add(Activation('relu'))
-    # model.add(Dense(units=2))
+    model.add(Dense(units=2))
+    model.add(Activation('tanh'))
     layer = Dense(2, trainable=False)
     model.add(layer)
     l = layer.get_weights()
     print l
-    l[0][0] = np.array([0.0, 0.01])
-    l[0][1] = np.array([0.01, 0.0])
+    l[0][0] = np.array([0.0, max_acc])
+    l[0][1] = np.array([max_acc, 0.0])
+    l[1] = np.array([max_acc/2.0,0.0]) # Bias the network to go forward.
     layer.set_weights(l)
     print layer.get_weights()
     #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
@@ -220,7 +223,7 @@ def get_test_reward(env, actor, critic, k, l, test_std_dev, num_testing_iteratio
     ave_reward = 0.0
     ave_steps = 0.0
     for i in range(num_testing_iterations):
-        total_reward, num_steps = run_nn_policy(env, actor, k, l, test_std_dev, True)
+        total_reward, num_steps = run_nn_policy(env, actor, k, l, test_std_dev, False)
         # print total_reward
         ave_reward += total_reward
         ave_steps += num_steps
@@ -229,27 +232,30 @@ def get_test_reward(env, actor, critic, k, l, test_std_dev, num_testing_iteratio
     return ave_reward, ave_steps
 
 def main():
-    env = gym.make('coop-v0')
-    smooth_average_reward = RollingStats(30)
-    num_training_iterations = 100000
+    env = gym.make('coop4cars-v0')
+    num_training_iterations = 20000
+    testing_frequency = 200 # After how many training iterations do we check the testing error?
     num_testing_iterations = 50
-    k = 0
-    l = 0
-    actor = create_policy_model(k, l)
+    k = 0 # Number of closest cars the neural net stores
+    l = 0 # Number of closest obstacles the neural net stores
+    # Check that k < total number of cars, l <= total number of obstacles
+    
+    # Initialize actor and critics.
+    actor = create_policy_model(k, l, env.get_max_accel())
     critic = create_critic_model(k, l)
+
     # Anneal the standard deviation down.
     test_std_dev = 0.00001
-    stddev = 0.1
-    stddev_delta = 0.000002
+    stddev = 0.03
+    stddev_delta = 0.000000
     stddev_min = 0.0001
+
     for i in range(num_training_iterations):
         total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, k, l, stddev, False)
-        # reinforce(env, actor, critic, episode, total_reward, stddev)
         if stddev > stddev_min:
             stddev -= stddev_delta
-        smooth_average_reward.add_num(total_reward)
-        # print smooth_average_reward.get_average(), total_reward, num_steps
-        if i % 100 == 0:
+        # Get test error every so often
+        if i % testing_frequency == 0:
             ave_reward, ave_steps = get_test_reward(env, actor, critic, k, l, test_std_dev, 5)
             print ave_reward, ave_steps, stddev
             # print model.get_weights()

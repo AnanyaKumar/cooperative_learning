@@ -28,7 +28,7 @@ class CoopEnv(Env):
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=1., max_steps=10, time_delta=1.0):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=0.5, max_steps=10, time_delta=1, time_gran=5):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
@@ -36,6 +36,7 @@ class CoopEnv(Env):
         self._max_velocity = max_velocity
         self._max_steps = max_steps
         self._time_delta = time_delta
+        self._time_gran = time_gran
         # Actions are the acceleration in the x direction and y direction for each car.
         self.action_space = spaces.Tuple((
             spaces.Box(low=-self._max_accel, high=self._max_accel, shape=(num_cars_y,)), # x acceleration
@@ -101,13 +102,14 @@ class CoopEnv(Env):
         accel = np.clip(actions, a_min=-self._max_accel, a_max=self._max_accel)
 
         # Move cars.
-        for i in range(len(self._cars)):
-            # Only consider alive cars.
-            if self._cars[i].is_alive:
-                self._cars[i].move(accel[0][i], accel[1][i], self._time_delta, self._max_velocity)
+        for j in range(self._time_gran):
+            for i in range(len(self._cars)):
+                # Only consider alive cars.
+                if self._cars[i].is_alive:
+                    self._cars[i].move(accel[0][i], accel[1][i], float(self._time_delta) / self._time_gran, self._max_velocity)
 
-        # Check collisions.
-        self._kill_collided_cars()
+            # Check collisions.
+            self._kill_collided_cars()
 
         # Compute rewards.
         new_reward = self._get_total_reward()
@@ -181,9 +183,24 @@ class CoopEnv(Env):
     def get_max_accel(self):
         return self._max_accel
 
-obstacle_list1 = [Obstacle(1.5,.5,0.2), Obstacle(2.0, .8, .1)]
+obstacle_list1 = [Obstacle(1.0,.5,0.1)]
 
 register(
-    id='coop-v0',
+    id='coop1car1obs-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 2, 'obstacles': []})
+    kwargs={'num_cars_y': 1, 'obstacles': obstacle_list1})
+
+register(
+    id='coop2cars1obs-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 2, 'obstacles': obstacle_list1})
+
+register(
+    id='coop1car-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 1, 'obstacles': []})
+
+register(
+    id='coop4cars-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 4, 'obstacles': []})
