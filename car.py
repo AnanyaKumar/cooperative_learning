@@ -34,7 +34,6 @@ class Car:
     def move(self, acc_x, acc_y, time, max_vel):
         """Move the car for specified time with specified acceleration vector."""
         assert self.is_alive
-
         new_vel_x = self.vel_x + acc_x * time
         new_vel_y = self.vel_y + acc_y * time
 
@@ -54,6 +53,7 @@ class Car:
             self.pos_y = self.pos_y + self.vel_y * dt + 0.5 * acc_y * (dt ** 2) + max_vel * (time - dt)
             self.vel_y = max_vel
 
+
         self.max_x = max(self.pos_x, self.max_x)
 
     def get_reward(self):
@@ -61,11 +61,8 @@ class Car:
         if self.is_alive:
             return self.max_x - self.start_x
         else:
-            # TODO: Decide if we actually want to subtract 100. Maybe it's too high. Furthermore,
-            # even without subtracting the cars should learn to make progress because colliding
-            # with another car or hitting a road boundary kills the car and prevents it from
-            # making future progress.
-            return self.max_x - self.start_x - 1.0
+            # TODO: Code seems to be very brittle on the penalty of dying.
+            return self.max_x - self.start_x - 0.5
 
     def dist(self, obj):
         return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y)

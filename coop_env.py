@@ -12,23 +12,23 @@ import geometry_utils
 class CoopEnv(Env):
     """Implement the cooperative game environment described in our proposal."""
 
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def _setup_simple_lane(self, car_radius=1, y_gap=0.5, num_cars_y=1, road_length=100):
+    def _setup_simple_lane(self, car_radius=0.05, num_cars_y=1, road_length=3):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
         # TODO: add randomly generated obstacle(s) that don't intersect and are within the lane.
         # TODO: make a more complex environment, where we have a bunch of rows of cars.
         # y-coordinate of the bottom lane.
         self._bottom_lane = 0
         # y-coordinate of the top lane.
-        self._top_lane = 2 * num_cars_y * car_radius + (num_cars_y + 1) * y_gap
+        self._top_lane = 1
         # List of cars.
         self._car_radius = car_radius
-        cars_y = [(i+1) * y_gap + (2 * i + 1) * car_radius for i in range(num_cars_y)]
+        cars_y = [float(i+1)/float(num_cars_y+1) for i in range(num_cars_y)]
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=1, max_velocity=5, max_steps=500, time_delta=0.05):
+    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=0.5, max_steps=10, time_delta=1, time_gran=5):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
         self._setup_simple_lane(num_cars_y=num_cars_y)
@@ -36,6 +36,7 @@ class CoopEnv(Env):
         self._max_velocity = max_velocity
         self._max_steps = max_steps
         self._time_delta = time_delta
+        self._time_gran = time_gran
         # Actions are the acceleration in the x direction and y direction for each car.
         self.action_space = spaces.Tuple((
             spaces.Box(low=-self._max_accel, high=self._max_accel, shape=(num_cars_y,)), # x acceleration
@@ -49,7 +50,7 @@ class CoopEnv(Env):
             c.reset()
         self._num_steps = 0
         self._reward = 0.0
-        return list(self._cars)
+        return (list(self._cars), list(self._obstacles))
 
     def _kill_collided_cars(self):
         """Check collisions between cars and cars and obstacles, kill cars that collide with anything"""
@@ -80,6 +81,10 @@ class CoopEnv(Env):
                 self._cars[i].pos_y < self._bottom_lane + self._car_radius or
                 self._cars[i].pos_y > self._top_lane - self._car_radius):
                 kill_list.append(self._cars[i])
+
+        # It is important that we first decide what cars to kill, and then kill them. This
+        # is because collisions are not transitive. E.g. suppose A collides with B, B collides
+        # with C. If we kill B, then A and C aren't colliding. But we want to kill all of them.
         for car in kill_list:
             car.die()
 
@@ -91,19 +96,20 @@ class CoopEnv(Env):
         """Execute the specified list of actions.
             action: numpy.array, shape=[num_cars, 2]
         """
-        # assert self.action_space.contains(actions)
+        assert self.action_space.contains(actions)
 
         # Clip acceleration
         accel = np.clip(actions, a_min=-self._max_accel, a_max=self._max_accel)
 
         # Move cars.
-        for i in range(len(self._cars)):
-            # Only consider alive cars.
-            if self._cars[i].is_alive:
-                self._cars[i].move(accel[0][i], accel[1][i], self._time_delta, self._max_velocity)
+        for j in range(self._time_gran):
+            for i in range(len(self._cars)):
+                # Only consider alive cars.
+                if self._cars[i].is_alive:
+                    self._cars[i].move(accel[0][i], accel[1][i], float(self._time_delta) / self._time_gran, self._max_velocity)
 
-        # Check collisions.
-        self._kill_collided_cars()
+            # Check collisions.
+            self._kill_collided_cars()
 
         # Compute rewards.
         new_reward = self._get_total_reward()
@@ -121,9 +127,9 @@ class CoopEnv(Env):
             is_terminal = True
 
         # No debug information right now.
-        debug_info = None
+        debug_info = {}
 
-        return list(self._cars), step_reward, is_terminal, debug_info
+        return (list(self._cars), list(self._obstacles)), step_reward, is_terminal, debug_info
 
 
     def _render(self, mode='human', close=False):
@@ -131,8 +137,8 @@ class CoopEnv(Env):
         screen_height = 400
         # Shift the coordinates so that we can see above the top lane, below the bottom lane,
         # left of the start position of the cars.
-        shift_y = 0.5
-        shift_x = 2
+        shift_y = 0.005
+        shift_x = 0.02
         # The scaling is defined in terms of the height, apply the same scaling so that the
         # rendering doesn't look weird.
         # TODO: make sure we can see all obstacles (and maybe all cars).
@@ -162,7 +168,8 @@ class CoopEnv(Env):
         top_lane = geometry_utils.shift_then_scale_points(top_lane, shift_x, shift_y, scale_x, scale_y)
         self.viewer.add_onetime(rendering.PolyLine(top_lane, True))
 
-        self.viewer.render()
+        return self.viewer.render(return_rgb_array=(mode == "rgb_array"))
+        
 
     def _seed(self, seed=None):
         """Set the random seed.
@@ -174,8 +181,27 @@ class CoopEnv(Env):
         """
         np.random.seed(seed)
 
+    def get_max_accel(self):
+        return self._max_accel
+
+obstacle_list1 = [Obstacle(1.0,.5,0.1)]
 
 register(
-    id='coop-v0',
+    id='coop1car1obs-v0',
     entry_point='coop_env:CoopEnv',
-    kwargs={'num_cars_y': 6, 'obstacles': []})
+    kwargs={'num_cars_y': 1, 'obstacles': obstacle_list1})
+
+register(
+    id='coop2cars1obs-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 2, 'obstacles': obstacle_list1})
+
+register(
+    id='coop1car-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 1, 'obstacles': []})
+
+register(
+    id='coop4cars-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 4, 'obstacles': []})
