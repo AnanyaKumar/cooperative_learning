@@ -52,6 +52,5 @@ def build_cnn_input(car_list, top_lane, scale=(4.0, 4.0), size=(40,40)):
 			draw.ellipse(bb, fill=(1))
 
 		inputs.append(np.array(im.getdata()).reshape(size))
-		im.show()
 
 	return inputs
