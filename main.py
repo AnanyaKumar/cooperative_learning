@@ -3,7 +3,9 @@ import gym
 import math
 import time
 import interface
-from keras.layers import Dense, Activation, Lambda
+from keras.layers import Dense, Activation, Lambda, Flatten
+from keras.layers.pooling import MaxPooling2D
+from keras.layers.convolutional import Conv2D
 
 from keras.models import Sequential
 from keras import optimizers
@@ -190,45 +192,37 @@ def run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev=1.0, ren
     return total_reward, num_steps
 
     
-def create_policy_model(k, l, max_acc):
+def create_policy_model(input_shape):
     model = Sequential()
-    model.add(Dense(units=8, input_dim = interface.get_nn_input_dim(k,l)))
+    model.add(Conv2D(16, (5,5), activation='relu', input_shape = (input_shape[0], input_shape[1], 1)))
+    model.add(MaxPooling2D())
+    model.add(Conv2D(16, (3,3), activation='relu'))
+    model.add(MaxPooling2D())
+    model.add(Flatten())
+    model.add(Dense(units=128))
     model.add(Activation('relu'))
-    model.add(Dense(units=8))
+    model.add(Dense(units=128))
     model.add(Activation('relu'))
-    model.add(Dense(units=8))
-    model.add(Activation('relu'))
-    # model.add(Dense(units=2, kernel_initializer='zeros',
-    #     bias_initializer='zeros'))
-    # model.add(Activation('relu'))
-    # model.add(Dense(units=56))
-    # model.add(Activation('relu'))
     model.add(Dense(units=2))
-    model.add(Activation('tanh'))
-    layer = Dense(2, trainable=False)
-    model.add(layer)
-    l = layer.get_weights()
-    print l
-    l[0][0] = np.array([0.0, max_acc])
-    l[0][1] = np.array([max_acc, 0.0])
-    l[1] = np.array([max_acc/2.0,0.0]) # Bias the network to go forward.
-    layer.set_weights(l)
-    print layer.get_weights()
+    model.add(Activation('relu'))
     #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
-    model.compile(optimizer='rmsprop', loss='mse')
+    model.compile(optimizer='adam', loss='mse')
     return model
 
-def create_critic_model(k,l):
+def create_critic_model(input_shape):
     model = Sequential()
-    model.add(Dense(units=12, input_dim = interface.get_nn_input_dim(k,l)))
+    model.add(Conv2D(16, (5,5), activation='relu', input_shape = (input_shape[0], input_shape[1], 1)))
+    model.add(MaxPooling2D())
+    model.add(Conv2D(16, (3,3), activation='relu'))
+    model.add(MaxPooling2D())
+    model.add(Flatten())
+    model.add(Dense(units=128))
     model.add(Activation('relu'))
-    model.add(Dense(units=12))
-    model.add(Activation('relu'))
-    model.add(Dense(units=12))
+    model.add(Dense(units=128))
     model.add(Activation('relu'))
     model.add(Dense(units=1))
     #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
-    model.compile(optimizer='rmsprop', loss='mse')
+    model.compile(optimizer='adam', loss='mse')
     return model
 
 def get_test_reward(env, actor, critic, build_state_rep, test_std_dev, num_testing_iterations=50):
@@ -248,7 +242,7 @@ def record_episode(env, recorder, actor, build_state_rep, std_dev):
 
 def main():
     env = gym.make('coop4cars-v0')
-    recorder = gym.wrappers.Monitor(env, "videos", video_callable=lambda id: record_flag)
+    # recorder = gym.wrappers.Monitor(env, "videos", video_callable=lambda id: record_flag)
     num_training_iterations = 20000
     testing_frequency = 200 # After how many training iterations do we check the testing error?
     num_testing_iterations = 50
@@ -257,11 +251,11 @@ def main():
     # Check that k < total number of cars, l <= total number of obstacles
     
     # Initialize actor and critics.
-    actor = create_policy_model(k, l, env.get_max_accel())
-    critic = create_critic_model(k, l)
+    actor = create_policy_model((40,40))
+    critic = create_critic_model((40,40))
 
     # For recording videos
-    build_state_rep = lambda state: interface.build_nn_input(state, k, l)
+    build_state_rep = lambda state: interface.build_cnn_input(state)
 
     # Anneal the standard deviation down.
     test_std_dev = 0.00001
@@ -276,11 +270,11 @@ def main():
         # Get test error every so often
         if i % testing_frequency == 0:
             ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 5)
-            record_episode(env, recorder, actor, build_state_rep, test_std_dev)
-            print ave_reward, ave_steps, stddev
+            # record_episode(env, recorder, actor, build_state_rep, test_std_dev)
+            print(ave_reward, ave_steps, stddev)
             # print model.get_weights()
     ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 50)
-    print ave_reward, ave_steps, stddev
+    print(ave_reward, ave_steps, stddev)
 
 if __name__ == '__main__':
     main()
