@@ -134,8 +134,7 @@ record_flag = 0
 #     return total_reward, num_steps
 
 def run_episode(env, mk_state_repr, policy, render_opt=False):
-    state = env.reset()
-    state_repr = mk_state_repr(state)
+    state_repr = mk_state_repr(env.reset())
     if render_opt:
         env.render()
     episode = []
@@ -143,11 +142,12 @@ def run_episode(env, mk_state_repr, policy, render_opt=False):
     num_steps = 0
     while True:
         action = policy(state_repr)
-        new_state, reward, is_terminal, _ = env.step(action)
+        next_state, reward, is_terminal, _ = env.step(action)
         if render_opt:
             env.render()
-        next_state_repr = mk_state_repr(new_state)
+        next_state_repr = mk_state_repr(next_state)
         episode.append(Sample(state_repr, action, reward, next_state_repr, is_terminal))
+        state_repr = next_state_repr
         total_reward += reward[0]
         num_steps += 1
         if is_terminal:
@@ -169,6 +169,7 @@ def actor_critic_training_update(actor, critic, stddev, experience):
     action_t = np.array(experience.action).transpose()
     target = (action_t - pred) / (stddev ** 2) * delta + pred
     actor.train_on_batch(experience.state, target)
+    
 
 # def run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev=1.0, render=True):
 #     """Run one episode of monte carlo reinforce with baseline. See page 271 of
@@ -285,7 +286,7 @@ def create_critic_model(k,l):
 #     return run_nn_policy(env, actor, build_state_rep, std_dev, render=True, recorder=recorder)
 
 def main():
-    env = gym.make('coop1car-v0')
+    env = gym.make('coop1car1obs-v0')
     #recorder = gym.wrappers.Monitor(env, "videos", force=True, video_callable=lambda id: record_flag)
     k = 0 # Number of closest cars the neural net stores
     l = 0 # Number of closest obstacles the neural net stores
@@ -293,7 +294,7 @@ def main():
     
     # Initialize actor and critics.
     actor = create_policy_model(k, l)
-    critic = create_critic_model(k, l)
+    critic = create_critic_model(k, l) 
 
     # Anneal the standard deviation down.
     stddev = TRAIN_STDDEV
@@ -304,7 +305,7 @@ def main():
     def policy(state_repr):
         pred = actor.predict_on_batch(state_repr)
         action = interface.build_nn_output(pred, std_x=stddev, std_y=stddev)
-        return interface.clip_output(action, env.get_max_accel())
+        return interface.clip_output(action, MAX_ACCEL)
 
     def training_update(experience):
         return actor_critic_training_update(actor, critic, stddev, experience)
@@ -316,6 +317,7 @@ def main():
         for experience in episode:
             replay_memory.append(experience)
         for experience in replay_memory.sample(REPLAY_MEMORY_BATCH_SIZE):
+            #print "state", experience.state, "action", experience.action, "reward", experience.reward, "next_state", experience.next_state
             training_update(experience)
         print "total reward=",total_reward, "num steps=", num_steps
                                                  

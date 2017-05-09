@@ -86,7 +86,7 @@ class ReplayMemory:
            most recently appended, the other samples are uniformly random"""
         assert self.size > 0
         self.validate_indices()
-        batch_size = max(self.size, batch_size)
+        batch_size = min(self.size, batch_size)
         sample_list = [None] * batch_size
         # We deviate from the DeepMind paper, and make sure the newest sample is given at least once
         # to the neural net.
