@@ -7,6 +7,7 @@ import numpy as np
 from gym.envs.classic_control import rendering
 from car import Car
 from obstacle import Obstacle
+from hyperparameters import *
 import geometry_utils
 
 class CoopEnv(Env):
@@ -14,24 +15,24 @@ class CoopEnv(Env):
 
     metadata = {'render.modes': ['human', 'rgb_array']}
 
-    def _setup_simple_lane(self, car_radius=0.05, num_cars_y=1, road_length=3):
+    def _setup_simple_lane(self, car_radius=0.05, num_cars_y=1, road_length=ROAD_LENGTH):
         """Setup a simple lane, the cars want to start from the left and go to the right"""
         # TODO: add randomly generated obstacle(s) that don't intersect and are within the lane.
         # TODO: make a more complex environment, where we have a bunch of rows of cars.
         # y-coordinate of the bottom lane.
-        self._bottom_lane = 0
+        self._bottom_lane = BOTTOM_LANE
         # y-coordinate of the top lane.
-        self._top_lane = 1
+        self._top_lane = TOP_LANE
         # List of cars.
         self._car_radius = car_radius
         cars_y = [float(i+1)/float(num_cars_y+1) for i in range(num_cars_y)]
         self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
-    def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=0.5, max_steps=10, time_delta=1, time_gran=5):
+    def __init__(self, obstacles=[], num_cars_y=1, car_radius=0.05, max_accel=MAX_ACCEL, max_velocity=MAX_SPEED, max_steps=MAX_STEPS, time_delta=TIME_DELTA, time_gran=TIME_GRANULARITY):
         # TODO: add support for max velocity, and make sure cars don't go above this.
         self._obstacles = obstacles
-        self._setup_simple_lane(num_cars_y=num_cars_y)
+        self._setup_simple_lane(num_cars_y=num_cars_y, car_radius=car_radius)
         self._max_accel = max_accel
         self._max_velocity = max_velocity
         self._max_steps = max_steps
@@ -49,7 +50,7 @@ class CoopEnv(Env):
         for c in self._cars:
             c.reset()
         self._num_steps = 0
-        self._reward = 0.0
+        self._reward = [0.0 for c in self._cars]
         return (list(self._cars), list(self._obstacles))
 
     def _kill_collided_cars(self):
@@ -88,9 +89,10 @@ class CoopEnv(Env):
         for car in kill_list:
             car.die()
 
-    def _get_total_reward(self):
+    def _compute_reward(self):
         """Get the total reward (from the start of the episode)"""
-        return sum([c.get_reward() for c in self._cars])
+        total_reward = sum([c.get_reward() for c in self._cars]) 
+        return [total_reward for c in self._cars]
 
     def _step(self, actions):
         """Execute the specified list of actions.
@@ -112,8 +114,8 @@ class CoopEnv(Env):
             self._kill_collided_cars()
 
         # Compute rewards.
-        new_reward = self._get_total_reward()
-        step_reward = new_reward - self._reward
+        new_reward = self._compute_reward()
+        step_reward = [a-b for (a,b) in zip(new_reward,self._reward)]
         self._reward = new_reward
 
         # Update number of steps.
