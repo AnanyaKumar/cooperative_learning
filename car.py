@@ -41,7 +41,10 @@ class Car:
             self.pos_x = self.pos_x + self.vel_x * time + 0.5 * acc_x * (time ** 2)
             self.vel_x = new_vel_x
         else:
-            dt = (max_vel - self.vel_x) / acc_x     # barring weird floating point issues, dt < time
+            if acc_x != 0.0:
+                dt = (max_vel - self.vel_x) / acc_x     # barring weird floating point issues, dt < time
+            else:
+                dt = time
             self.pos_x = self.pos_x + self.vel_x * dt + 0.5 * acc_x * (dt ** 2) + max_vel * (time - dt)
             self.vel_x = max_vel
 
@@ -49,7 +52,10 @@ class Car:
             self.pos_y = self.pos_y + self.vel_y * time + 0.5 * acc_y * (time ** 2)
             self.vel_y = new_vel_y
         else:
-            dt = (max_vel - self.vel_y) / acc_y     # barring weird floating point issues, dt < time
+            if acc_y != 0.0:
+                dt = (max_vel - self.vel_y) / acc_y     # barring weird floating point issues, dt < time
+            else:
+                dt = time
             self.pos_y = self.pos_y + self.vel_y * dt + 0.5 * acc_y * (dt ** 2) + max_vel * (time - dt)
             self.vel_y = max_vel
 
