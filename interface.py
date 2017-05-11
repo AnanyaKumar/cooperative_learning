@@ -67,7 +67,7 @@ def build_nn_output(normal_list, std_x=1, std_y=1):
 	controls_y = [np.random.normal(mean_y, abs(std_y)) for (_, mean_y) in normal_list]
 	return (np.array(controls_x), np.array(controls_y))
 
-def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(4.0, 4.0), size=(40,40)):
+def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(50.0, 50.0), size=(40,40)):
 	car_list, obs_list = lists
 	center = (size[0]/scale[0]/2, size[1]/scale[1]/2)
 	lane_width = size[0] / scale[0]
@@ -98,5 +98,7 @@ def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(4.0, 4.0), size=(40,40
 			draw.ellipse(bb, fill=(1))
 
 		inputs.append(np.array(im.getdata()).reshape((size[0], size[1], 1)))
+		if i==0:
+			im.show()
 
 	return np.array(inputs)

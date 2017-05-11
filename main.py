@@ -265,6 +265,7 @@ def main():
 
     for i in range(num_training_iterations):
         total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev, False)
+        return
         if stddev > stddev_min:
             stddev -= stddev_delta
         # Get test error every so often
