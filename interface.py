@@ -98,7 +98,5 @@ def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(50.0, 50.0), size=(40,
 			draw.ellipse(bb, fill=(1))
 
 		inputs.append(np.array(im.getdata()).reshape((size[0], size[1], 1)))
-		if i==0:
-			im.show()
 
 	return np.array(inputs)
