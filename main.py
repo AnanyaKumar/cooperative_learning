@@ -108,7 +108,9 @@ def run_actor_critic_episode(env, actor, critic, build_state_rep, stddev=1.0, re
         for i in range(num_cars):
             next_reward[i][0] += reward
         cur_reward = critic.predict_on_batch(old_state_rep)
+        print(cur_reward)
         delta = next_reward - cur_reward
+        print(delta)
         critic.train_on_batch(old_state_rep, next_reward)
         # print num_steps, critic.predict_on_batch(old_state_rep)[0][0]
 
@@ -205,15 +207,6 @@ def create_policy_model(k, l, max_acc):
     # model.add(Activation('relu'))
     model.add(Dense(units=2))
     model.add(Activation('tanh'))
-    layer = Dense(2, trainable=False)
-    model.add(layer)
-    l = layer.get_weights()
-    print l
-    l[0][0] = np.array([0.0, max_acc])
-    l[0][1] = np.array([max_acc, 0.0])
-    l[1] = np.array([max_acc/2.0,0.0]) # Bias the network to go forward.
-    layer.set_weights(l)
-    print layer.get_weights()
     #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
     model.compile(optimizer='rmsprop', loss='mse')
     return model
@@ -277,10 +270,10 @@ def main():
         if i % testing_frequency == 0:
             ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 5)
             record_episode(env, recorder, actor, build_state_rep, test_std_dev)
-            print ave_reward, ave_steps, stddev
+            print(ave_reward, ave_steps, stddev)
             # print model.get_weights()
     ave_reward, ave_steps = get_test_reward(env, actor, critic, build_state_rep, test_std_dev, 50)
-    print ave_reward, ave_steps, stddev
+    print(ave_reward, ave_steps, stddev)
 
 if __name__ == '__main__':
     main()
