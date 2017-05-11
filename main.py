@@ -204,7 +204,7 @@ def create_policy_model(input_shape):
     model.add(Dense(units=128))
     model.add(Activation('relu'))
     model.add(Dense(units=2))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
     model.compile(optimizer='adam', loss='mse')
     return model
