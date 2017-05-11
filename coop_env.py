@@ -8,6 +8,7 @@ from gym.envs.classic_control import rendering
 from car import Car
 from obstacle import Obstacle
 import geometry_utils
+import random
 
 class CoopEnv(Env):
     """Implement the cooperative game environment described in our proposal."""
@@ -25,7 +26,7 @@ class CoopEnv(Env):
         # List of cars.
         self._car_radius = car_radius
         cars_y = [float(i+1)/float(num_cars_y+1) for i in range(num_cars_y)]
-        self._cars = [Car(0.0, y, car_radius) for y in cars_y]
+        self._cars = [Car(0.0, random.random() * 0.9 + 0.05, car_radius) for y in cars_y]
         self._road_length = road_length
 
     def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=0.5, max_steps=10, time_delta=1, time_gran=5):
@@ -46,10 +47,21 @@ class CoopEnv(Env):
         self._reset()
 
     def _reset(self):
+        # choice = random.randint(0,3)
+        # if choice == 0:
+        #     y_location = 0.2
+        # elif choice == 1:
+        #     y_location = 0.4
+        # elif choice == 2:
+        #     y_location = 0.6
+        # else:
+        #     y_location = 0.8
+        # self._obstacles = [Obstacle(1.0,y_location,0.2)]
         for c in self._cars:
             c.reset()
         self._num_steps = 0
         self._reward = 0.0
+        self._cars = [Car(0.0, random.random() * 0.9 + 0.05, 0.05)]
         return (list(self._cars), list(self._obstacles))
 
     def _kill_collided_cars(self):
