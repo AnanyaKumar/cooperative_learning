@@ -9,9 +9,9 @@ def build_nn_input(state, k, l):
 	"""Takes a list of car objects and returns neural net state information for each car.
 
 	Args: state: State from the environment. Consists of a list of
-	        cars and obstacles.  k: Each car decides what action
-	        to take based on its information and the information
-	        of the closest k cars, and the closest l obstacles.
+			cars and obstacles.  k: Each car decides what action
+			to take based on its information and the information
+			of the closest k cars, and the closest l obstacles.
 
 	Returns: A numpy array states, where states[i] is the state
 		for the ith car. len(states) is the number of
@@ -22,27 +22,28 @@ def build_nn_input(state, k, l):
 		floats are the relative (x,y) position and radius of
 		the l closest obstacles.
 
-        """
-        car_list, obstacle_list = state
+		"""
+	
+	car_list, obstacle_list = state
 	assert k < len(car_list)
-        assert l <= len(obstacle_list)
+	assert l <= len(obstacle_list)
 	nn_input = []
 	for this_car in car_list:
 		sorted_car_list = sorted([(this_car.dist(car), car) for car in car_list], key=(lambda x:x[0]))
-                sorted_obstacle_list = sorted([(this_car.dist(obs), obs) for obs in obstacle_list], key=(lambda x:x[0]))
+		sorted_obstacle_list = sorted([(this_car.dist(obs), obs) for obs in obstacle_list], key=(lambda x:x[0]))
 		# Remove the first car, as it should be itself
 		sorted_car_list = [x[1] for x in sorted_car_list[1:k+1]]
-                sorted_obstacle_list = [x[1] for x in sorted_obstacle_list[0:l]]
+		sorted_obstacle_list = [x[1] for x in sorted_obstacle_list[0:l]]
 		param_list = [[car.pos_x - this_car.pos_x, car.pos_y - this_car.pos_y,
-			car.vel_x - this_car.vel_x, car.vel_y - this_car.vel_y] for car in sorted_car_list]
-                param_list += [[obs.pos_x - this_car.pos_x, obs.pos_y - this_car.pos_y, obs.radius] for obs in sorted_obstacle_list]
-                param_list.append([this_car.pos_x, this_car.pos_y, this_car.vel_x, this_car.vel_y])
+		car.vel_x - this_car.vel_x, car.vel_y - this_car.vel_y] for car in sorted_car_list]
+		param_list += [[obs.pos_x - this_car.pos_x, obs.pos_y - this_car.pos_y, obs.radius] for obs in sorted_obstacle_list]
+		param_list.append([this_car.pos_x, this_car.pos_y, this_car.vel_x, this_car.vel_y])
 		nn_input.append(np.array(sum(param_list, [])))
 
 	return np.array(nn_input)
 
 def get_nn_input_dim(k, l):
-        return 4 * k + 3 * l + 4
+		return 4 * k + 3 * l + 4
 
 def clip_output(controls, max_accel):
 	controls_x, controls_y = controls
@@ -66,7 +67,8 @@ def build_nn_output(normal_list, std_x=1, std_y=1):
 	controls_y = [np.random.normal(mean_y, abs(std_y)) for (_, mean_y) in normal_list]
 	return (np.array(controls_x), np.array(controls_y))
 
-def build_cnn_input(car_list, top_lane, scale=(4.0, 4.0), size=(40,40)):
+def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(4.0, 4.0), size=(40,40)):
+	car_list, obs_list = lists
 	center = (size[0]/scale[0]/2, size[1]/scale[1]/2)
 	lane_width = size[0] / scale[0]
 	lane_height = size[1] / scale[1]
@@ -77,7 +79,6 @@ def build_cnn_input(car_list, top_lane, scale=(4.0, 4.0), size=(40,40)):
 		draw = ImageDraw.Draw(im)
 		param_list = [(car.pos_x - this_car.pos_x, car.pos_y - this_car.pos_y) for car in car_list]
 
-		bot_lane = 0
 		bb = ((this_car.pos_x - lane_width / 2, bot_lane), (this_car.pos_x + lane_width / 2, bot_lane - lane_height))
 		bb = geometry_utils.shift_then_scale_points(bb, -this_car.pos_x+center[0], -this_car.pos_y+center[1], scale[0], scale[1])
 		draw.rectangle(bb, fill=(1))
@@ -86,7 +87,7 @@ def build_cnn_input(car_list, top_lane, scale=(4.0, 4.0), size=(40,40)):
 		bb = geometry_utils.shift_then_scale_points(bb, -this_car.pos_x+center[0], -this_car.pos_y+center[1], scale[0], scale[1])
 		draw.rectangle(bb, fill=(1))
 
-		for j in range(len(car_list)):
+		for j in range(len(car_list+obs_list)):
 			if i == j:
 				# Don't draw yourself (not that it really matters)
 				continue
@@ -96,6 +97,6 @@ def build_cnn_input(car_list, top_lane, scale=(4.0, 4.0), size=(40,40)):
 			bb = geometry_utils.shift_then_scale_points(bb, -this_car.pos_x+center[0], -this_car.pos_y+center[1], scale[0], scale[1])
 			draw.ellipse(bb, fill=(1))
 
-		inputs.append(np.array(im.getdata()).reshape(size))
+		inputs.append(np.array(im.getdata()).reshape((size[0], size[1], 1)))
 
-	return inputs
+	return np.array(inputs)
