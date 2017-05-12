@@ -20,7 +20,7 @@ def create_model(input_dim):
     model.add(Activation('relu'))
     # model.add(Dense(units=12))
     # model.add(Activation('relu'))
-    model.add(Dense(units=NUM_ACTIONS))
+    model.add(Dense(units=NUM_ACTIONS, kernel_initializer='zeros' ))
     model.compile(optimizer='rmsprop', loss='mse')
     return model
 
@@ -53,25 +53,30 @@ def qlearn_train(online_model, target_model, experience):
     old_action_values = online_model.predict_on_batch(experience.state)
     new_action_values = target_model.predict_on_batch(experience.next_state)
     #print new_action_values
-    
     target = []
-    for old_values, new_values, reward in zip(old_action_values.tolist(), new_action_values.tolist(), experience.reward):
-        action, value = optimal_action_value(new_values)
+    for old_values, action, new_values, reward in zip(old_action_values.tolist(), experience.action, new_action_values.tolist(), experience.reward):
+        #print "action=",action,"reward=",reward
+        _, value = optimal_action_value(new_values)
         if experience.is_terminal:
             old_values[action] = reward
         else:
             old_values[action] = reward + GAMMA * value
         target.append(list(old_values))
 
+    #print "asdfqe=", old_action_values
     #print "target=", target
     online_model.train_on_batch(experience.state, np.array(target))
 
 def main():
-    env = gym.make('coop1car1obs-v0')
-    k = 0
-    l = 0
+    env = gym.make('coop2cars1obs-v0')
+    k = 1
+    l = 1
     online_model = create_model(interface.get_nn_input_dim(k, l))
     target_model = create_model(interface.get_nn_input_dim(k, l))
+
+    eps = 0.1
+    annealing_iterations = 250
+    delta = (eps - EPS)/annealing_iterations
 
     def mk_state_repr(state):
         return interface.build_nn_input(state, k, l)
@@ -80,13 +85,14 @@ def main():
         pred = online_model.predict_on_batch(state_repr)
         actions = []
         for output in pred:
-            if random.uniform(0., 1.) <= EPS:
+            if random.uniform(0., 1.) <= eps:
                 actions.append(random.randint(0, NUM_ACTIONS-1))
             else:
                 action, _ = optimal_action_value(output)
                 actions.append(action)
-        
+
         return actions
+    
 
     replay_memory = ReplayMemory(REPLAY_MEMORY_MAX_SIZE)
     updates = 0
@@ -99,10 +105,11 @@ def main():
             qlearn_train(online_model, target_model, experience)
         updates += REPLAY_MEMORY_BATCH_SIZE
         if updates >= TARGET_FIXING_THRESHOLD:
-            online_model.set_weights(target_model.get_weights())
+            target_model.set_weights(online_model.get_weights())
             updates = 0
-        
-        #print "total reward=",total_reward, "num steps=", num_steps
+        eps = max(EPS, eps-delta)
+        print eps
+        print "total reward=",total_reward, "num steps=", num_steps
                                                  
         if i % TESTING_FREQUENCY == 0:
             total_reward = 0

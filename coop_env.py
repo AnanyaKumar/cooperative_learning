@@ -201,7 +201,7 @@ class CoopEnv(Env):
     def get_max_accel(self):
         return self._max_accel
 
-obstacle_list1 = [Obstacle(1.0,.5,0.1)]
+obstacle_list1 = [Obstacle(2.0,.5,0.15)]
 
 register(
     id='coop1car1obs-v0',

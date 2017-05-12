@@ -3,6 +3,7 @@
 
 import numpy as np
 import geometry_utils as geom
+import random
 
 class Car:
     def __init__(self, pos_x, pos_y, radius):
@@ -15,6 +16,7 @@ class Car:
         """Reset state of the car"""
         self.pos_x = self.start_x # Current x-coordinate.
         self.pos_y = self.start_y # Current y-coordinate.
+#self.pos_y = random.uniform(0.1,0.9)
         self.max_x = self.start_x # Max x-coordinate car has gone.
         self.vel_x = 0.0 # Velocity x-component.
         self.vel_y = 0.0 # Velocity y-component.
@@ -68,7 +70,7 @@ class Car:
             return self.max_x - self.start_x
         else:
             # TODO: Code seems to be very brittle on the penalty of dying.
-            return self.max_x - self.start_x - 0.5
+            return self.max_x - self.start_x
 
     def dist(self, obj):
         return geom.l2_distance(self.pos_x, self.pos_y, obj.pos_x, obj.pos_y)
