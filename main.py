@@ -106,12 +106,12 @@ def run_actor_critic_episode(env, actor, critic, build_state_rep, stddev=1.0, re
             next_reward = np.array([[0.0]] * num_cars)
         else:
             new_state_rep = build_state_rep(new_state)
-            next_reward = critic.predict_on_batch(new_state_rep)
+            next_reward = critic.predict_on_batch(interface.build_whole_state(new_state))
         for i in range(num_cars):
             next_reward[i][0] += reward
-        cur_reward = critic.predict_on_batch(old_state_rep)
+        cur_reward = critic.predict_on_batch(interface.build_whole_state(old_state))
         delta = next_reward - cur_reward
-        critic.train_on_batch(old_state_rep, next_reward)
+        critic.train_on_batch(interface.build_whole_state(old_state), next_reward)
         # print num_steps, critic.predict_on_batch(old_state_rep)[0][0]
 
         # Train actor
@@ -153,17 +153,15 @@ def run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev=1.0, ren
         # use the unclipped action for reinforce. Otherwise reinforce won't
         # get the correct updates.
         new_state, reward, is_terminal, debug_info = env.step(clipped_action)
-        episode.append((old_state_rep, pred, action, reward))
+        episode.append((old_state_rep, old_state, pred, action, reward))
         num_cars = len(env._cars)
         # Train critic
         if is_terminal:
-            next_reward = np.array([[0.0]] * num_cars)
+            next_reward = np.zeros((1,1))
         else:
-            new_state_rep = build_state_rep(new_state)
-            next_reward = critic.predict_on_batch(new_state_rep)
-        for i in range(num_cars):
-            next_reward[i][0] += reward
-        critic.train_on_batch(old_state_rep, next_reward)
+            next_reward = critic.predict_on_batch(interface.build_whole_state(new_state))
+        next_reward[0][0] += reward
+        critic.train_on_batch(interface.build_whole_state(old_state), next_reward)
 
         # Render if requested.
         if render:
@@ -181,9 +179,9 @@ def run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev=1.0, ren
     var = stddev ** 2
     state_batch = []
     target_batch = []
-    for state_rep, pred, action, reward in episode:
+    for state_rep, state, pred, action, reward in episode:
         action_t = np.array(action).transpose()
-        critic_reward = critic.predict_on_batch(state_rep)[0][0]
+        critic_reward = critic.predict_on_batch(interface.build_whole_state(state))[0][0]
         target = (action_t - pred)/var * (Gt - critic_reward) + pred
         state_batch.append(state_rep)
         target_batch.append(target)
@@ -211,14 +209,11 @@ def create_policy_model(input_shape):
 
 def create_critic_model(input_shape):
     model = Sequential()
-    model.add(Conv2D(16, (5,5), activation='relu', input_shape = (input_shape[0], input_shape[1], 1)))
-    model.add(MaxPooling2D())
-    model.add(Conv2D(16, (3,3), activation='relu'))
-    model.add(MaxPooling2D())
-    model.add(Flatten())
-    model.add(Dense(units=128))
+    model.add(Dense(units=32, input_shape = input_shape))
     model.add(Activation('relu'))
-    model.add(Dense(units=128))
+    model.add(Dense(units=32))
+    model.add(Activation('relu'))
+    model.add(Dense(units=32))
     model.add(Activation('relu'))
     model.add(Dense(units=1))
     #rmsprop = optimizers.RMSprop(lr=0.01, clipnorm=10.)
@@ -252,7 +247,7 @@ def main():
     
     # Initialize actor and critics.
     actor = create_policy_model((40,40))
-    critic = create_critic_model((40,40))
+    critic = create_critic_model((4 * 4,))
 
     # For recording videos
     build_state_rep = lambda state: interface.build_cnn_input(state)

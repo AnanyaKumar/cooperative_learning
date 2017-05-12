@@ -101,3 +101,7 @@ def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(50.0, 50.0), size=(40,
 		inputs.append(np.array(im.getdata()).reshape((size[0], size[1], 1)))
 
 	return np.array(inputs)
+
+def build_whole_state(lists):
+	car_list, obs_list = lists
+	return np.array([(car.pos_x, car.pos_y, car.vel_x, car.vel_y) for car in car_list]).reshape((1,-1))
