@@ -259,7 +259,7 @@ def main():
 
     # Anneal the standard deviation down.
     test_std_dev = 0.00001
-    stddev = 0.03
+    stddev = 0.1
     stddev_delta = 0.000000
     stddev_min = 0.0001
 

@@ -63,8 +63,9 @@ def build_nn_output(normal_list, std_x=1, std_y=1):
 	assert(type(normal_list) == np.ndarray)
 	assert(type(normal_list[0]) == np.ndarray)
 	assert(len(normal_list[0]) == 2)
-	controls_x = [np.random.normal(mean_x, abs(std_x)) for (mean_x, _) in normal_list]
-	controls_y = [np.random.normal(mean_y, abs(std_y)) for (_, mean_y) in normal_list]
+	controls_x = [np.random.normal(mean_x / 10.0, abs(std_x)) for (mean_x, _) in normal_list]
+	controls_y = [np.random.normal(mean_y / 10.0, abs(std_y)) for (_, mean_y) in normal_list]
+	# print(controls_x)
 	return (np.array(controls_x), np.array(controls_y))
 
 def build_cnn_input(lists, bot_lane=0, top_lane=1, scale=(50.0, 50.0), size=(40,40)):
