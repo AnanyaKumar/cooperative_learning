@@ -8,6 +8,7 @@ from gym.envs.classic_control import rendering
 from car import Car
 from obstacle import Obstacle
 import geometry_utils
+import random
 
 class CoopEnv(Env):
     """Implement the cooperative game environment described in our proposal."""
@@ -46,10 +47,21 @@ class CoopEnv(Env):
         self._reset()
 
     def _reset(self):
+        # choice = random.randint(0,3)
+        # if choice == 0:
+        #     y_location = 0.2
+        # elif choice == 1:
+        #     y_location = 0.4
+        # elif choice == 2:
+        #     y_location = 0.6
+        # else:
+        #     y_location = 0.8
+        # self._obstacles = [Obstacle(1.0,y_location,0.2)]
         for c in self._cars:
             c.reset()
         self._num_steps = 0
         self._reward = 0.0
+        # self._cars = [Car(0.0, random.random() * 0.9 + 0.05, 0.05)]
         return (list(self._cars), list(self._obstacles))
 
     def _kill_collided_cars(self):
@@ -200,6 +212,11 @@ register(
     id='coop1car-v0',
     entry_point='coop_env:CoopEnv',
     kwargs={'num_cars_y': 1, 'obstacles': []})
+
+register(
+    id='coop2cars-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 2, 'obstacles': []})
 
 register(
     id='coop4cars-v0',
