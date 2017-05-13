@@ -26,7 +26,7 @@ class CoopEnv(Env):
         # List of cars.
         self._car_radius = car_radius
         cars_y = [float(i+1)/float(num_cars_y+1) for i in range(num_cars_y)]
-        self._cars = [Car(0.0, random.random() * 0.9 + 0.05, car_radius) for y in cars_y]
+        self._cars = [Car(0.0, y, car_radius) for y in cars_y]
         self._road_length = road_length
 
     def __init__(self, obstacles=[], num_cars_y=1, max_accel=0.1, max_velocity=0.5, max_steps=10, time_delta=1, time_gran=5):
@@ -61,7 +61,7 @@ class CoopEnv(Env):
             c.reset()
         self._num_steps = 0
         self._reward = 0.0
-        self._cars = [Car(0.0, random.random() * 0.9 + 0.05, 0.05)]
+        # self._cars = [Car(0.0, random.random() * 0.9 + 0.05, 0.05)]
         return (list(self._cars), list(self._obstacles))
 
     def _kill_collided_cars(self):
@@ -212,6 +212,11 @@ register(
     id='coop1car-v0',
     entry_point='coop_env:CoopEnv',
     kwargs={'num_cars_y': 1, 'obstacles': []})
+
+register(
+    id='coop2cars-v0',
+    entry_point='coop_env:CoopEnv',
+    kwargs={'num_cars_y': 2, 'obstacles': []})
 
 register(
     id='coop4cars-v0',

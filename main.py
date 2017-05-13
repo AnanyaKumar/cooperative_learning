@@ -210,8 +210,8 @@ def create_policy_model(k, l, max_acc):
     l[0][1] = np.array([max_acc, 0.0])
     l[1] = np.array([0.0,0.0])
     layer.set_weights(l)
-    rmsprop = optimizers.RMSprop(lr=0.00001, clipnorm=0.1)
-    model.compile(optimizer='rmsprop', loss='mse')
+    rmsprop = optimizers.RMSprop(lr=0.001)
+    model.compile(optimizer=rmsprop, loss='mse')
     return model
 
 def create_critic_model(k,l):
@@ -223,8 +223,8 @@ def create_critic_model(k,l):
     model.add(Dense(units=12))
     model.add(Activation('relu'))
     model.add(Dense(units=1))
-    rmsprop = optimizers.RMSprop(lr=0.0001, clipnorm=1.)
-    model.compile(optimizer='rmsprop', loss='mse')
+    rmsprop = optimizers.RMSprop(lr=0.001)
+    model.compile(optimizer=rmsprop, loss='mse')
     return model
 
 def get_test_reward(env, actor, critic, build_state_rep, test_std_dev, num_testing_iterations=50):
@@ -260,12 +260,12 @@ def main():
 
     # Anneal the standard deviation down.
     test_std_dev = 0.00001
-    stddev = 0.05
-    stddev_delta = 0.0
-    stddev_min = 0.0001
+    stddev = 0.3
+    stddev_delta = 0.00003
+    stddev_min = 0.05
 
     for i in range(num_training_iterations):
-        total_reward, num_steps = run_actor_critic_episode(env, actor, critic, build_state_rep, stddev, False)
+        total_reward, num_steps = run_monte_carlo_episode(env, actor, critic, build_state_rep, stddev, False)
         if stddev > stddev_min:
             stddev -= stddev_delta
         # Get test error every so often

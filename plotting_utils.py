@@ -3,17 +3,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def visualize_critic(critic):
+    pass
     visualize_nn(lambda in_state: critic.predict_on_batch(in_state)[0][0],
         [[(0.5, 0.0), (0.0, 0.0)], [(0.5, 0.5), (0.5, -0.5)]], "critic",
-        'gray', None, None)
+        'gray', None, None, 0.5)
 
 def visualize_actor(actor, max_accel):
     visualize_nn(lambda in_state: actor.predict_on_batch(in_state)[0][1],
-        [[(0.5, 0.0), (0.0, 0.0)], [(0.5, 0.5), (0.5, -0.5)]], "actor_x",
-        'seismic', -max_accel, max_accel)
+        [[(0.5, 0.0), (0.0, 0.0)], [(0.5, 0.5), (0.5, -0.5)]], "actor_x_0.5",
+        'seismic', -max_accel, max_accel, 0.5)
+    # visualize_nn(lambda in_state: actor.predict_on_batch(in_state)[0][1],
+    #     [[(0.5, 0.0), (0.0, 0.0)], [(0.5, 0.5), (0.5, -0.5)]], "actor_x_0.8",
+    #     'seismic', -max_accel, max_accel, 0.8)
 
 axarr_dict = {}
-def visualize_nn(model, varray, plot_name, cmap, vmin, vmax):
+def visualize_nn(model, varray, plot_name, cmap, vmin, vmax, obs_y):
     global axarr_dict
     plt.ion()
     xlen = 10
